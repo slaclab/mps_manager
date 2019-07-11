@@ -142,6 +142,9 @@ class MpsManagerThresholdRequest():
                            [0.0, 0.0, 0.0, 0.0]] # same for T7
         self.format += "64d"        
 
+        self.disable = 0
+        self.format += "i"
+        
         self.struct = Struct(self.format)
 
     def size(self):
@@ -156,7 +159,8 @@ class MpsManagerThresholdRequest():
         all_values += [item for sublist in self.lc2_value for item in sublist]
         all_values += [item for sublist in self.alt_active for item in sublist]
         all_values += [item for sublist in self.alt_value for item in sublist]
-
+        all_values += [self.disable]
+        
         return self.struct.pack(*all_values)
 
     def unpack_array(self, array):
@@ -186,6 +190,7 @@ class MpsManagerThresholdRequest():
         self.lc2_value = self.unpack_array(all_data[96:160])
         self.alt_active = self.unpack_array(all_data[160:224])
         self.alt_value = self.unpack_array(all_data[224:288])
+        self.disable = all_data[288]
 
     def to_string(self):
         return 'message.to_string() TDB'

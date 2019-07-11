@@ -47,8 +47,13 @@ class ThresholdManager:
       print('ERROR: Invalid device')
       return False
 
-  def change_thresholds(self):
+  def change_thresholds(self, disable):
     message = MpsManagerThresholdRequest()
+
+    if disable:
+      message.disable = 1
+    else:
+      message.disable = 0
 
     for thr_table, v in self.table.items(): # lc1, lc2, idl or aln
 #      print thr_table
@@ -74,6 +79,7 @@ class ThresholdManager:
               message.alt_active[thr_type_index * 8 + thr_index_index][thr_int_index] = 1
               message.alt_value[thr_type_index * 8 + thr_index_index][thr_int_index] = float(thr_value)
     
+    print(message.size())
     self.sock.send(message.pack())
 
     response = MpsManagerThresholdResponse()
@@ -211,6 +217,8 @@ parser.add_argument('-t', nargs=5, action='append',
                          '  lc1: lcls-i thresholds, only t0 available\n'+
                          '  idl: no beam thresholds, only t0 available\n')
 
+parser.add_argument('--disable', action='store_true', default=False, help="Disable specified thresholds")
+
 group_list = parser.add_mutually_exclusive_group()
 group_list.add_argument('--device-id', metavar='database device id', type=int, nargs='?', help='database id for the device')
 group_list.add_argument('--device-name', metavar='database device name (e.g. bpm1b)', type=str, nargs='?', help='device name as found in the mps database')
@@ -238,6 +246,6 @@ if (tm.build_threshold_table(args.t) == False):
 if (tm.check_device(user, reason, device_id, device_name) == False):
   exit(2)
 
-if (tm.change_thresholds() == False):
+if (tm.change_thresholds(args.disable) == False):
   exit(3)
 

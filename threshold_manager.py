@@ -12,6 +12,7 @@ import yaml
 import epics
 from epics import PV
 from argparse import RawTextHelpFormatter
+from pprint import *
 
 class ThresholdManager:
   """
@@ -67,7 +68,7 @@ class ThresholdManager:
 
     return True
 
-  def writeThreshold(self, pv, value):
+  def writeThreshold(self, pv, value, pv_enable, pv_enable_value):
     try:
       pv.put(value)
     except epics.ca.CASeverityException:
@@ -75,6 +76,15 @@ class ThresholdManager:
         return True
       else:
         print('ERROR: Tried to write to a read-only PV ({}={})'.format(pv.pvname, value))
+        return False
+
+    try:
+      pv_enable.put(pv_enable_value)
+    except epics.ca.CASeverityException:
+      if (self.force_write):
+        return True
+      else:
+        print('ERROR: Tried to write to a read-only PV ({}={})'.format(pv_enable.pvname, pv_enable_value))
         return False
 
     return True
@@ -117,10 +127,16 @@ class ThresholdManager:
   #
   def change_thresholds(self, rt_d, user, reason, is_bpm,
                         lc1_active, lc1_value, idl_active, idl_value,
-                        lc2_active, lc2_value, alt_active, alt_values):
+                        lc2_active, lc2_value, alt_active, alt_values,
+                        disable):
 
     t = self.build_table(lc1_active, lc1_value, idl_active, idl_value,
                          lc2_active, lc2_value, alt_active, alt_values)
+
+    if disable:
+      pv_enable_value = 0
+    else:
+      pv_enable_value = 1
 
     force_write = True
     ignore_pv = True
@@ -145,13 +161,20 @@ class ThresholdManager:
           # Get threshold table
           t_table = self.getThresholdTableName(table_k, integrator_k, threshold_k)
           for value_k, value_v in integrator_v.items():
-            if (value_k != 'pv'):
+            if (value_k == 'l'):
+              pv = integrator_v['l_pv']
+              pv_enable = integrator_v['l_pv_enable']
+            elif (value_k == 'h'):
+              pv = integrator_v['h_pv']
+              pv_enable = integrator_v['h_pv_enable']
+
+            if (value_k == 'l' or value_k == 'h'):
               old_value = getattr(getattr(rt_d, t_table), '{1}_{2}'.format(t_table, integrator_k, value_k))
-              if (not self.writeThreshold(integrator_v['pv'], value_v)):
+              if (not self.writeThreshold(pv, value_v, pv_enable, pv_enable_value)):
                 pv_change_status = False
-                pv_names = '{}* {}={}\n'.format(pv_names,integrator_v['pv'].pvname, value_v)
+                pv_names = '{}* {}={}\n'.format(pv_names,pv.pvname, value_v)
               self.updateThreshold(rt_d, t_table, integrator_k, value_k, value_v)
-              pv_name = integrator_v['pv'].pvname
+              pv_name = pv.pvname
               log = log + '{}: threshold={} integrator={} type={} prev={} new={}\n'.\
                   format(pv_name, threshold_k, integrator_k, value_k, old_value, value_v)
 
@@ -354,9 +377,18 @@ class ThresholdManager:
         self.table[table_name][t_index][integrator][t_type]=value
         pv_name = self.mps_names.getThresholdPv(self.mps_names.getAnalogDeviceNameFromId(rt_d.mpsdb_id),
                                                 table_name, t_index, integrator, t_type, is_bpm)
+        pv_name_enable = pv_name + '_EN'
         pv = PV(pv_name)
-        self.table[table_name][t_index][integrator]['pv']=pv
-        if (pv.host == None):
+        pv_enable = PV(pv_name_enable)
+
+        if (t_type == 'l'):
+          self.table[table_name][t_index][integrator]['l_pv']=pv
+          self.table[table_name][t_index][integrator]['l_pv_enable']=pv_enable
+        else:
+          self.table[table_name][t_index][integrator]['h_pv']=pv
+          self.table[table_name][t_index][integrator]['h_pv_enable']=pv_enable
+
+        if (pv.host == None or pv_enable.host == None):
           if (not ignore_pv):
             valid_pvs = False
             bad_pv_names = '{} {}'.format(bad_pv_names, pv_name)
@@ -365,7 +397,8 @@ class ThresholdManager:
             ro_pvs = True
             ro_pv_names = '{} {}'.format(ro_pv_names, pv_name)
 
-#    print self.table
+#    pp=PrettyPrinter(indent=4)
+#    pp.pprint(self.table)
 
     if (not valid_pvs):
       error_message = 'Cannot find PV(s)'

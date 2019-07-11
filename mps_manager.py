@@ -7,6 +7,7 @@ import errno
 import argparse
 import time
 import datetime
+import signal
 
 from mps_names import MpsName
 from mps_config import MPSConfig, runtime, models
@@ -18,6 +19,12 @@ from threshold_manager import ThresholdManager
 from ctypes import *
 import threading
 from threading import Thread, Lock
+
+def signal_hander(sig, frame):
+    print('=== MpsManager exiting ===')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_hander)
 
 class DatabaseReader():
     def __init__(self, db_file_name, rt_file_name):
@@ -79,8 +86,9 @@ class MpsManager:
 
   def __init__(self, host, port, log_file_name, db_file_name, stdout):
       self.db_file_name = db_file_name
-      self.rt_file_name = db_file_name.split('.')[0]+'_runtime.db'
-
+      self.rt_file_name = '{}/{}_runtime.db'.format(os.path.dirname(self.db_file_name),
+                                         os.path.basename(self.db_file_name).\
+                                             split('.')[0])
 #      self.mps = MPSConfig(self.db_file_name, self.rt_file_name)
 #      self.session = self.mps.session
 #      self.rt_session = self.mps.runtime_session
@@ -96,9 +104,7 @@ class MpsManager:
       self.db_write_lock = Lock()
       self.db_readers = 0
 
-      # create dgram udp socket
       try:
-#          self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
           self.tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           self.tcp_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
           self.tcp_server.bind(('0.0.0.0', port))
@@ -117,7 +123,6 @@ class MpsManager:
               exit(1)
 
       myAddr = (self.host, self.port)
-#      self.sock.bind(myAddr)
   
   def db_reader_start(self):
       self.db_read_lock.acquire()
@@ -243,7 +248,8 @@ class MpsManager:
                                                     threshold_message.lc1_active, threshold_message.lc1_value,
                                                     threshold_message.idl_active, threshold_message.idl_value,
                                                     threshold_message.lc2_active, threshold_message.lc2_value,
-                                                    threshold_message.alt_active, threshold_message.alt_value)
+                                                    threshold_message.alt_active, threshold_message.alt_value,
+                                                    threshold_message.disable)
 
       self.log_string('\n' + log + ': ' + error_pvs)
       if status:
