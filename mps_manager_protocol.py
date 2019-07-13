@@ -19,6 +19,28 @@ class MpsManagerResponseType(Enum):
     BAD_DEVICE = '2'
     OK = '3'
 
+class MpsManagerRequest():
+    def __init__(self, request_type=100, request_device_id=0, request_device_name="None"):
+        self.request_type = request_type # int
+        self.request_device_id = request_device_id # int
+        self.request_device_name = request_device_name
+
+        self.format = "ii50s"
+        self.struct = Struct(self.format)
+
+    def size(self):
+        return calcsize(self.format)
+
+    def pack(self):
+        return self.struct.pack(self.request_type, self.request_device_id, self.request_device_name)
+
+    def unpack(self, data):
+        self.request_type, self.request_device_id, self.request_device_name = self.struct.unpack(data)
+        self.request_device_name = self.request_device_name.rstrip('\0')
+
+    def to_string(self):
+        return 'message.to_string() TDB'
+
 class MpsManagerResponse():
     def __init__(self, status=0, device_id=0):
         self.status = status
@@ -57,7 +79,7 @@ class MpsManagerThresholdResponse():
         self.message = self.message.rstrip('\0')
 
 class MpsManagerThresholdRequest():
-    def __init__(self):
+    def __init__(self, device_id=-1, device_name="", user_name="", reason=""):
         self.lc1_active = [[0, 0, 0, 0], # I0, I1, I2, I3 low active
                            [0, 0, 0, 0]] # I0, I1, I2, I3 high active
         self.lc1_value  = [[0.0, 0.0, 0.0, 0.0], # I0, I1, I2, I3 low values
@@ -144,6 +166,13 @@ class MpsManagerThresholdRequest():
 
         self.disable = 0
         self.format += "i"
+
+        self.device_id = device_id # int 
+        self.device_name = device_name # 50 char
+        self.user_name = user_name # 50 char
+        self.reason = reason # 200 char
+
+        self.format += "i50s50s200s"
         
         self.struct = Struct(self.format)
 
@@ -151,6 +180,7 @@ class MpsManagerThresholdRequest():
         return calcsize(self.format)
 
     def pack(self):
+        print(self.size())
         all_values = [item for sublist in self.lc1_active for item in sublist]
         all_values += [item for sublist in self.lc1_value for item in sublist]
         all_values += [item for sublist in self.idl_active for item in sublist]
@@ -160,7 +190,11 @@ class MpsManagerThresholdRequest():
         all_values += [item for sublist in self.alt_active for item in sublist]
         all_values += [item for sublist in self.alt_value for item in sublist]
         all_values += [self.disable]
-        
+        all_values += [self.device_id]
+        all_values += [self.device_name]
+        all_values += [self.user_name]
+        all_values += [self.reason]
+
         return self.struct.pack(*all_values)
 
     def unpack_array(self, array):
@@ -191,41 +225,11 @@ class MpsManagerThresholdRequest():
         self.alt_active = self.unpack_array(all_data[160:224])
         self.alt_value = self.unpack_array(all_data[224:288])
         self.disable = all_data[288]
+        self.device_id = all_data[289]
+        self.device_name = all_data[290].rstrip('\0')
+        self.user_name = all_data[291].rstrip('\0')
+        self.reason = all_data[292].rstrip('\0')
 
     def to_string(self):
         return 'message.to_string() TDB'
 
-class MpsManagerRequest():
-    def __init__(self, request_type=100, thr_count=0, thr_table='lc1',
-                 thr_index='t0', thr_integrator='i0',
-                 thr_type='l', thr_value=0.0, device_id=0,
-                 device_name='None', user_name='None', reason='None'):
-        self.request_type = request_type # int
-        self.thr_count = thr_count # int 
-        self.device_id = device_id # int 
-        self.device_name = device_name # 50 char
-        self.user_name = user_name # 50 char
-        self.reason = reason # 200 char
-
-        self.format = "iii50s50s200s"
-        self.struct = Struct(self.format)
-
-    def size(self):
-        return calcsize(self.format)
-
-    def pack(self):
-        return self.struct.pack(self.request_type,
-                                self.thr_count,
-                                self.device_id,
-                                self.device_name,
-                                self.user_name, 
-                                self.reason)
-
-    def unpack(self, data):
-        self.request_type, self.thr_count, self.device_id, self.device_name, self.user_name, self.reason = self.struct.unpack(data)
-        self.device_name = self.device_name.rstrip('\0')
-        self.user_name = self.user_name.rstrip('\0')
-        self.reason = self.reason.rstrip('\0')
-
-    def to_string(self):
-        return 'message.to_string() TDB'

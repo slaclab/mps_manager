@@ -25,14 +25,9 @@ class ThresholdManager:
     self.sock.connect((self.host, self.port))
     self.device_id = -1
 
-  def check_device(self, user, reason, dev_id, dev_name):
-    message = MpsManagerRequest()
-    message.request_type = int(MpsManagerRequestType.DEVICE_CHECK.value)
-    message.device_id = dev_id
-    message.device_name = dev_name
-    message.user_name = user
-    message.reason = reason
-    message.thr_count = self.num_thresholds
+  def check_device(self, dev_id, dev_name):
+    message = MpsManagerRequest(request_type=int(MpsManagerRequestType.CHANGE_THRESHOLD.value),
+                                request_device_id=dev_id, request_device_name=dev_name)
     self.sock.send(message.pack())
 
     response = MpsManagerResponse()
@@ -47,8 +42,9 @@ class ThresholdManager:
       print('ERROR: Invalid device')
       return False
 
-  def change_thresholds(self, disable):
-    message = MpsManagerThresholdRequest()
+  def change_thresholds(self, user, reason, dev_id, dev_name, disable):
+    message = MpsManagerThresholdRequest(device_id=dev_id, device_name=dev_name,
+                                         user_name=user, reason=reason)
 
     if disable:
       message.disable = 1
@@ -79,7 +75,6 @@ class ThresholdManager:
               message.alt_active[thr_type_index * 8 + thr_index_index][thr_int_index] = 1
               message.alt_value[thr_type_index * 8 + thr_index_index][thr_int_index] = float(thr_value)
     
-    print(message.size())
     self.sock.send(message.pack())
 
     response = MpsManagerThresholdResponse()
@@ -243,9 +238,10 @@ tm = ThresholdManager()
 if (tm.build_threshold_table(args.t) == False):
   exit(1)
 
-if (tm.check_device(user, reason, device_id, device_name) == False):
+if (tm.check_device(device_id, device_name) == False):
   exit(2)
 
-if (tm.change_thresholds(args.disable) == False):
+if (tm.change_thresholds(user, reason, device_id,
+                         device_name, args.disable) == False):
   exit(3)
 
