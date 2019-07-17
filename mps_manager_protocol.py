@@ -17,7 +17,10 @@ class MpsManagerRequestType(Enum):
 class MpsManagerResponseType(Enum):
     BAD_REQUEST = '1'
     BAD_DEVICE = '2'
-    OK = '3'
+    RESTORE_FAIL = '3'
+    RESTORE_INVALID_APP = '4'
+    RESTORE_INVALID_DEVICE = '5'
+    OK = '10'
 
 class MpsManagerRequest():
     def __init__(self, request_type=100, request_device_id=0, request_device_name="None"):
@@ -42,21 +45,23 @@ class MpsManagerRequest():
         return 'message.to_string() TDB'
 
 class MpsManagerResponse():
-    def __init__(self, status=0, device_id=0):
+    def __init__(self, status=0, device_id=0, status_message=''):
         self.status = status
         self.device_id = device_id
+        self.status_message = status_message
 
-        self.format = "ii"
+        self.format = "ii200s"
         self.struct = Struct(self.format)
     
     def size(self):
         return calcsize(self.format)
 
     def pack(self):
-        return self.struct.pack(self.status, self.device_id)
+        return self.struct.pack(self.status, self.device_id, self.status_message)
 
     def unpack(self, data):
-        self.status, self.device_id = self.struct.unpack(data)
+        self.status, self.device_id, self.status_message = self.struct.unpack(data)
+        self.status_message = self.status_message.rstrip('\0')
 
     def to_string(self):
         return 'message.to_string() TDB'

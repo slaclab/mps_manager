@@ -35,11 +35,12 @@ class RestoreManager:
     response.unpack(data)
 
     if (response.status == int(MpsManagerResponseType.OK.value)):
-      self.device_id = response.device_id
-      print('Restored thresholds for app={}'.format(response.device_id))
+      print(response.status_message)
       return True
     else:
-      print('ERROR: Invalid device')
+      print('ERROR: Failed to restore thresholds')
+      if (len(response.status_message) > 0):
+        print(response.status_message)
       return False
     
 #=== main ==================================================================================

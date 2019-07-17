@@ -31,53 +31,49 @@ class ThresholdRestorer:
   """
   Restore thresholds of analog devices - using latest thresholds saved in database
   """
-  def __init__(self, db=None, rt_db=None, force_write=False, verbose=False, mps=None):
-    if (db != None and rt_db != None): 
-      self.mps = MPSConfig(db, rt_db)
-    elif (mps != None):
-      self.mps = mps
-    else:
-      raise ValueError('MPS database instance not specified')
+  def __init__(self, db=None, rt_db=None, mps_names=None, force_write=False, verbose=False):
+    self.session = db
+    self.rt_session = rt_db
+    self.mps_names = mps_names
+    self.error_message = ''
 
-    self.session = self.mps.session
-    self.rt_session = self.mps.runtime_session
-    self.mps_names = MpsName(self.session)
     self.verbose = verbose
     self.force_write = force_write
     self.rt = RuntimeChecker(self.session, self.rt_session, self.verbose)
 
-  def __exit__(self):
-    self.session.close()
-    self.rt_session.close()
+    self.app = None
 
   def check_app(self, app_id):
     if (self.verbose):
       sys.stdout.write('Checking app_id {}... '.format(app_id))
     
-    app = None
+    self.app = None
     try:
-      app = self.session.query(models.ApplicationCard).filter(models.ApplicationCard.global_id==app_id).one()
+      self.app = self.session.query(models.ApplicationCard).\
+          filter(models.ApplicationCard.global_id==app_id).one()
     except:
-      print('ERROR: Cannot find application with global id {}.'.format(app_id))
+      self.error_message='ERROR: Cannot find application with global id {}.'.format(app_id)
+      print(self.error_message)
       return None
 
     if (self.verbose):
       print('found')
 
 
-    if (len(app.analog_channels) == 0):
-      print('ERROR: There are no analog channels defined for this application (global id={})'.\
-              format(app_id))
-      print('Name: {}'.format(app.name))
-      print('Description: {}'.format(app.description))
-      print('Crate: {}, Slot: {}'.format(app.crate.get_name(), app.slot_number))
+    if (len(self.app.analog_channels) == 0):
+      self.error_message='ERROR: There are no analog channels defined for this application (global id={})'.\
+          format(app_id)
+      print(self.error_message)
+      print('Name: {}'.format(self.app.name))
+      print('Description: {}'.format(self.app.description))
+      print('Crate: {}, Slot: {}'.format(self.app.crate.get_name(), app.slot_number))
       return None
 
-    print('Name: {}'.format(app.name))
-    print('Description: {}'.format(app.description))
-    print('Crate: {}, Slot: {}'.format(app.crate.get_name(), app.slot_number))
+    print('Name: {}'.format(self.app.name))
+    print('Description: {}'.format(self.app.description))
+    print('Crate: {}, Slot: {}'.format(self.app.crate.get_name(), self.app.slot_number))
 
-    return app
+    return self.app
 
   def check_devices(self, app):
     if (self.verbose):
@@ -98,14 +94,15 @@ class ThresholdRestorer:
 
   def get_restore_list(self, devices):
     """
-    Assembles and returns a list of dicts [{ 'device': device, 'pv': pyepicspv, 'value': threshold},...].
+    Assembles and returns a list of dicts [{ 'device': device, 'pv': pyepicspv,
+                                             'pv_enable': pyepicspv, 'value': threshold},...].
     The thresholds in the list are only those that have been set in the past,
     that is given by the '*_active' table field.
 
     The input parameter devices in a list of pairs [[device, rt_device],...]
     """
     if (self.verbose):
-      sys.stdout.write('Retrieving thresholds... ')
+      print('Retrieving thresholds from database:')
 
     restore_list=[]
     for [d, rt_d] in devices:
@@ -120,14 +117,20 @@ class ThresholdRestorer:
         if (threshold_item['active']):
           restore_item['device'] = rt_d
           restore_item['pv'] = threshold_item['pv']
+          restore_item['pv_enable'] = threshold_item['pv_enable']
           restore_item['value'] = threshold_item['value']
           restore_list.append(restore_item)
           if (self.verbose):
             print('{}={}'.format(threshold_item['pv'].pvname, threshold_item['value']))
+        else:
+          if (threshold_item['pv'] != None):
+            threshold_item['pv'].disconnect()
+          if (threshold_item['pv_enable'] != None):
+            threshold_item['pv_enable'].disconnect()
 
     if (self.verbose):
       print('done.')
-
+ 
     return restore_list
 
   def check_pvs(self, restore_list):
@@ -140,8 +143,12 @@ class ThresholdRestorer:
       if (restore_item['pv'].host == None):
         valid_pvs = False
         bad_pv_names = '{} * {}\n'.format(bad_pv_names, restore_item['pv'].pvname)
+      if (restore_item['pv_enable'].host == None):
+        valid_pvs = False
+        bad_pv_names = '{} * {}\n'.format(bad_pv_names, restore_item['pv_enable'].pvname)
     
     if (not valid_pvs):
+      self.error_message = 'ERROR: PV(s) cannot be reached, threshold change not allowed.'
       print('ERROR: The following PV(s) cannot be reached, threshold change not allowed:')
       print(bad_pv_names)
       return False
@@ -156,11 +163,23 @@ class ThresholdRestorer:
       try:
         restore_item['pv'].put(restore_item['value'])
       except epics.ca.CASeverityException:
+        self.error_message='ERROR: Tried to write to a read-only PV ({}={})'.\
+            format(restore_item['pv'].pvname, restore_item['value'])
+        print self.error_message
         if (self.force_write):
           return True
         else:
-          print('ERROR: Tried to write to a read-only PV ({}={})'.\
-                  format(restore_item['pv'].pvname, restore_item['value']))
+          return False
+
+      try:
+        restore_item['pv_enable'].put(1)
+      except epics.ca.CASeverityException:
+        self.error_message='ERROR: Tried to write to a read-only PV ({}=1)'.\
+            format(restore_item['pv_enable'].pvname)
+        print self.error_message
+        if (self.force_write):
+          return True
+        else:
           return False
 
     if (self.verbose):
@@ -168,15 +187,23 @@ class ThresholdRestorer:
 
     return True
 
-  def release(self, app):
-    release_pv = PV('{}:THR_LOADED'.format(app.get_pv_name()))
+  def disconnect(self, restore_list):
+    for restore_item in restore_list:
+      restore_item['pv'].disconnect()
+      restore_item['pv_enable'].disconnect()
+
+  def release(self):
+    if (self.app == None):
+      return False
+
+    release_pv = PV('{}:THR_LOADED'.format(self.app.get_pv_name()))
 
     if (self.verbose):
       sys.stdout.write('Releasing IOC (setting {})...'.format(release_pv.pvname))
 
     # do release
     if (release_pv.host == None):
-      print('ERROR: Failed to read relase PV {}'.format(release_pv.pvname))
+      print('ERROR: Failed to read release PV {}'.format(release_pv.pvname))
       return False
 
     try:
@@ -186,6 +213,8 @@ class ThresholdRestorer:
               format(release_pv.pvname))
       return False
       
+    release_pv.disconnect()
+
     if (self.verbose):
       print(' done.')
 
@@ -196,7 +225,8 @@ class ThresholdRestorer:
 
     devices = self.check_devices(app)
     if (devices == None):
-      print('ERROR: found no devices in databases {}'.format(app_id))
+      self.error_message = 'ERROR: found no devices for application {}'.format(app_id)
+      print(self.error_message)
       return False
       
     restore_list = self.get_restore_list(devices)
@@ -209,6 +239,8 @@ class ThresholdRestorer:
     if (release):
       self.release(app)
 
+    self.disconnect(restore_list)
+      
     return True
 
   def check(self, app_id):

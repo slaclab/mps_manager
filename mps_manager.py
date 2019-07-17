@@ -14,8 +14,10 @@ from mps_config import MPSConfig, runtime, models
 from mps_manager_protocol import *
 from runtime import *
 from sqlalchemy import func
+from epics import PV
 
 from threshold_manager import ThresholdManager
+from threshold_restorer import ThresholdRestorer
 from ctypes import *
 import threading
 from threading import Thread, Lock
@@ -75,6 +77,7 @@ class WriterThread(threading.Thread):
         self.mps_manager.log_string('Writer [START]')
         self.mps_manager.db_write_lock.acquire()
         self.mps_manager.change_threshold(self.dbr, self.message, self.conn, self.ip, self.port)
+        self.mps_manager.past_writers += 1
         self.mps_manager.db_write_lock.release()
         self.mps_manager.log_string('Writer [END]')
 
@@ -90,17 +93,16 @@ class MpsManager:
   messageCount = 0
   currentFileName = None
   stdout = False
+  past_readers = 0
+  past_writers = 0
+  hb_pv = None
+  hb_count = 0
 
-  def __init__(self, host, port, log_file_name, db_file_name, stdout):
+  def __init__(self, host, port, log_file_name, db_file_name, hb_pv_name, stdout):
       self.db_file_name = db_file_name
       self.rt_file_name = '{}/{}_runtime.db'.format(os.path.dirname(self.db_file_name),
                                          os.path.basename(self.db_file_name).\
                                              split('.')[0])
-#      self.mps = MPSConfig(self.db_file_name, self.rt_file_name)
-#      self.session = self.mps.session
-#      self.rt_session = self.mps.runtime_session
-#      self.mps_names = MpsName(self.session)
-
       self.stdout = stdout
       self.host = host
       self.port = port
@@ -110,6 +112,13 @@ class MpsManager:
       self.db_read_lock = Lock()
       self.db_write_lock = Lock()
       self.db_readers = 0
+      self.readers = []
+      self.writers = []
+
+      self.hb_pv = PV(hb_pv_name)
+      if (self.hb_pv.host == None):
+          print('ERROR: Cannot connect to specified heart beat PV ({})'.format(hb_pv_name))
+          exit(1)
 
       try:
           self.tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -124,9 +133,9 @@ class MpsManager:
               self.file = open(self.log_file_name, 'a')
           except IOError as e:
               if e.errno == errno.EACCES:
-                  print('ERROR: No permission to write file {0}'.format(self.currentFileName))
+                  print('ERROR: No permission to write file {}'.format(self.log_file_name))
               else:
-                  print('ERROR: errno={0}, cannot write to file {1}'.format(e.errno, self.currentFileName))
+                  print('ERROR: errno={}, cannot write to file {}'.format(e.errno, self.log_file_name))
               exit(1)
 
       myAddr = (self.host, self.port)
@@ -143,16 +152,47 @@ class MpsManager:
       self.db_readers -= 1
       if (self.db_readers == 0):
           self.db_write_lock.release()
+      self.past_readers += 1
       self.db_read_lock.release()
       
+  def cleanup(self):
+      old=self.readers
+      self.readers = []
+      for r in old:
+          if not r.isAlive():
+              del r
+          else:
+              self.readers.append(r)
+
+      old=self.writers
+      self.writers = []
+      for r in old:
+          if not r.isAlive():
+              del r
+          else:
+              self.readers.append(r)
+
+
   def run(self):
       done = False
-      self.log_string("=== MpsManager Server ===")
+      self.log_string("+== MpsManager Server ==============================")
+      self.log_string("| Host      : {}".format(self.host))
+      self.log_string("| Port      : {}".format(self.port))
+      self.log_string("| Config Db : {}".format(self.db_file_name))
+      self.log_string("| Runtime Db: {}".format(self.rt_file_name))
+      self.log_string("+===================================================")
+      self.tcp_server.settimeout(5)
       while not done:
           self.tcp_server.listen(4)
-          (conn, (ip, port)) = self.tcp_server.accept()
-          self.process_request(conn, ip, port)
-
+          try:
+              (conn, (ip, port)) = self.tcp_server.accept()
+              self.process_request(conn, ip, port)
+          except socket.timeout:
+              self.heartbeat() # Increment heart beat PV every 5 seconds
+              self.cleanup()   # Removes finished worker threads
+              if (self.hb_count % 32 == 0):
+                  self.log_stats()
+              
   def log_string(self, message):
       self.log_file_lock.acquire()
       if self.log_file_name != None:
@@ -163,18 +203,34 @@ class MpsManager:
                                  str(message)))
       self.log_file_lock.release()
 
+  def log_stats(self):
+      message = 'Active R={}/W={}, Past R={}/W={}'.\
+          format(len(self.readers), len(self.writers),
+                 self.past_readers, self.past_writers)
+      self.log_string(message)
+      
+  def heartbeat(self):
+      self.hb_count += 1
+      try:
+          self.hb_pv.put(self.hb_count)
+      except epics.ca.CASeverityException:
+          self.log_string('ERROR: Cannot update heartbeat PV ({})'.format(self.hb_pv.pvname)) 
+
   def decode_message(self, message, conn, ip, port):
       if (message.request_type == int(MpsManagerRequestType.RESTORE_APP_THRESHOLDS.value)):
           self.log_string('Request for restore app thresholds')
           reader = ReaderThread(self, message, conn, ip, port)
+          self.readers.append(reader)
           reader.start()
       elif (message.request_type == int(MpsManagerRequestType.CHANGE_THRESHOLD.value)):
           self.log_string('Request for change device thresholds')
           writer = WriterThread(self, message, conn, ip, port)
+          self.writers.append(writer)
           writer.start()
       elif (message.request_type == int(MpsManagerRequestType.DEVICE_CHECK.value)):
           self.log_string('Request for restore app thresholds')
           reader = ReaderThread(self, message, conn, ip, port, True)
+          self.readers.append(reader)
           reader.start()
       else:
           self.log_string('Invalid request type: {}'.format(message.request_type))
@@ -252,9 +308,30 @@ class MpsManager:
   def restore(self, conn, dbr, app_id):
       self.log_string('Restoring thresholds for app={}'.format(app_id))
       # Restore thresholds here
+      tr = ThresholdRestorer(dbr.session, dbr.rt_session, dbr.mps_names, False, True)
+
       response = MpsManagerResponse()
+      if (tr.restore(app_id) == False):
+          response.status = int(MpsManagerResponseType.RESTORE_FAIL.value)
+          response.status_message = tr.error_message
+          conn.send(response.pack())
+          return
+      else:
+          if (tr.check(app_id) == False):
+              response.status = int(MpsManagerResponseType.RESTORE_FAIL.value)
+              response.status_message = tr.error_message
+              conn.send(response.pack())
+              return
+          else:
+              if (tr.release() == False):
+                  response.status = int(MpsManagerResponseType.RESTORE_FAIL.value)
+                  response.status_message = tr.error_message
+                  conn.send(response.pack())
+                  return
+
       response.status = int(MpsManagerResponseType.OK.value)
       response.device_id = app_id
+      response.status_message = 'Thresholds restored for app {}'.format(app_id)
       conn.send(response.pack())
 
   def change_threshold(self, dbr, message, conn, ip, port):
@@ -300,8 +377,8 @@ class MpsManager:
 #===========================================================================
 # Main
 
-def main(host, port, log_file_name, database_name, stdout):
-    mps_manager = MpsManager(host, port, log_file_name, database_name, stdout)
+def main(host, port, log_file_name, database_name, hb_pv_name, stdout):
+    mps_manager = MpsManager(host, port, log_file_name, database_name, hb_pv_name, stdout)
     mps_manager.run()
 
 if __name__ == "__main__":
@@ -310,8 +387,9 @@ if __name__ == "__main__":
     parser.add_argument('database', metavar='db', type=file, nargs=1,
                         help='database file name (e.g. mps_gun_config.db)')
     parser.add_argument('--log-file', metavar='log_file', type=str, nargs='?',
-                        help='MpsManager log file base, e.g. /data/mps_manager/mps_manager - file will be /data/history/mps_manager-<DATE>.log')
+                        help='MpsManager log file base, e.g. /data/mps_manager/server.log')
     parser.add_argument('-c', action='store_true', default=False, dest='stdout', help='Print log messages to stdout')
+    parser.add_argument('--hb', metavar='PV', type=str, nargs='?', required=True, help='PV used as heart beat by the server')
 
     args = parser.parse_args()
 
@@ -330,5 +408,6 @@ if __name__ == "__main__":
         stdout=True
        
     main(host=host, port=port, log_file_name=log_file_name,
-         database_name=args.database[0].name, stdout=stdout)
+         database_name=args.database[0].name,
+         hb_pv_name=args.hb, stdout=stdout)
 
