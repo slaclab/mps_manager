@@ -129,6 +129,17 @@ class MpsManager:
           sys.exit()
 
       if (self.log_file_name != None):
+          if (os.path.isfile(self.log_file_name)):
+              base_name = os.path.basename(self.log_file_name)
+              dir_name = os.path.dirname(self.log_file_name)
+              if not '.' in base_name:
+                  backup_file_name = '{}-{}'.format(base_name,
+                                                    datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S'))
+              else:
+                  backup_file_name = '{}-{}.{}'.format(base_name.split('.')[0],
+                                                       datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S'),
+                                                       base_name.split('.')[1])
+              os.rename(self.log_file_name, dir_name + backup_file_name)
           try:
               self.file = open(self.log_file_name, 'a')
           except IOError as e:
