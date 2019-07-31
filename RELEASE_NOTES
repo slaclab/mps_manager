@@ -1,0 +1,19 @@
+#==============================================================
+#
+#  Name: RELEASE_NOTES
+#
+#  Rem:  This files describes release notes for
+#        the mps_database application.
+#
+#  Auth: 31-Jul-2019, L.Piccoli (lpiccoli)
+#  Rev:  dd-mmm-yyyy, Reviewer's Name    (USERNAME)
+#--------------------------------------------------------------
+mps_manager-R1-0-1: (31 Jul 2019)
+  * Renamed client commands to 'mps_<command>.py'
+  * Added README.md file
+  * Added command to get device thresholds from database
+
+mps_manager-R1-0-0: (Jun 2019)
+  * First release - TCP server processes requests to check device,
+    change threshold and restore application thresholds. Based
+    on scripts from mps_database/tools
