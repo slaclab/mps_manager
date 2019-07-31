@@ -9,11 +9,13 @@ class MpsManagerRequestType(Enum):
     or name is valid.
     CHANGE_THRESHOLD - sent after a DEVICE_CHECK, for each threshold change request
     RESTORE_APP_THRESHOLDS - sent by IOC after a reboot
+    GET_THRESHOLD - request current thresholds from database
     """
     DEVICE_CHECK = '1'
     CHANGE_THRESHOLD = '2'
     RESTORE_APP_THRESHOLDS = '3'
-
+    GET_THRESHOLD = '4'
+    
 class MpsManagerResponseType(Enum):
     BAD_REQUEST = '1'
     BAD_DEVICE = '2'
@@ -185,7 +187,6 @@ class MpsManagerThresholdRequest():
         return calcsize(self.format)
 
     def pack(self):
-        print(self.size())
         all_values = [item for sublist in self.lc1_active for item in sublist]
         all_values += [item for sublist in self.lc1_value for item in sublist]
         all_values += [item for sublist in self.idl_active for item in sublist]
@@ -199,7 +200,6 @@ class MpsManagerThresholdRequest():
         all_values += [self.device_name]
         all_values += [self.user_name]
         all_values += [self.reason]
-
         return self.struct.pack(*all_values)
 
     def unpack_array(self, array):
@@ -236,5 +236,10 @@ class MpsManagerThresholdRequest():
         self.reason = all_data[292].rstrip('\0')
 
     def to_string(self):
-        return 'message.to_string() TDB'
+        string  = '+ Thresholds:\n'
+        string += '  Device name: {}\n'.format(self.device_name)
+        string += '  Device id  : {}\n'.format(self.device_id)
+        string += '  User       : {}\n'.format(self.user_name)
+        string += '  Reason     : {}\n'.format(self.reason)
+        return string
 

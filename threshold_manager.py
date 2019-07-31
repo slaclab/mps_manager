@@ -13,6 +13,7 @@ import epics
 from epics import PV
 from argparse import RawTextHelpFormatter
 from pprint import *
+from mps_manager_protocol import *
 
 class ThresholdManager:
   """
@@ -23,16 +24,24 @@ class ThresholdManager:
     self.rt_session = rt_session
     self.mps_names = mps_names
 
-  def updateThreshold(self, rt_d, t_table, integrator_k, t_type, value_v):
+  def update_threshold(self, rt_d, t_table, integrator_k, t_type, value_v, active):
     """
     Save the threshold value to the database as the current value, also
     set the active field (it will be False if the threshold was never used before)
     """
     setattr(getattr(rt_d, t_table), '{0}_{1}'.format(integrator_k,t_type), value_v)
-    setattr(getattr(rt_d, t_table), '{0}_{1}_active'.format(integrator_k,t_type), True)
+    setattr(getattr(rt_d, t_table), '{0}_{1}_active'.format(integrator_k,t_type), active)
     self.rt_session.commit()
 
-  def getThresholdHistoryName(self, table_k, t_index):
+  def get_threshold(self, rt_d, t_table, integrator_k, t_type):
+    """
+    Get the threshold value and its active state
+    """
+    value = getattr(getattr(rt_d, t_table), '{0}_{1}'.format(integrator_k,t_type))
+    active = getattr(getattr(rt_d, t_table), '{0}_{1}_active'.format(integrator_k,t_type))
+    return value, active
+
+  def get_threshold_history_name(self, table_k, t_index):
     """
     Returns the database table that contains the history for the type of
     threshold.
@@ -48,12 +57,12 @@ class ThresholdManager:
 
     return None
   
-  def addHistory(self, table_k, t_index, rt_d, t_table, user, reason):
+  def add_history(self, table_k, t_index, rt_d, t_table, user, reason):
     """
     Make an entry recording the threshold setting history - sets the user
     name, date and reason for the change
     """
-    hist_name = self.getThresholdHistoryName(table_k, t_index)
+    hist_name = self.get_threshold_history_name(table_k, t_index)
     hist_class = globals()[hist_name]
     hist = hist_class(user=user, reason=reason, device_id=rt_d.id)
 
@@ -68,7 +77,7 @@ class ThresholdManager:
 
     return True
 
-  def writeThreshold(self, pv, value, pv_enable, pv_enable_value):
+  def write_threshold(self, pv, value, pv_enable, pv_enable_value):
     try:
       pv.put(value)
     except epics.ca.CASeverityException:
@@ -135,8 +144,10 @@ class ThresholdManager:
 
     if disable:
       pv_enable_value = 0
+      active = False
     else:
       pv_enable_value = 1
+      active = True
 
     force_write = True
     ignore_pv = True
@@ -159,7 +170,7 @@ class ThresholdManager:
       for threshold_k, threshold_v in table_v.items():
         for integrator_k, integrator_v in threshold_v.items():
           # Get threshold table
-          t_table = self.getThresholdTableName(table_k, integrator_k, threshold_k)
+          t_table = self.get_threshold_table_name(table_k, integrator_k, threshold_k)
           for value_k, value_v in integrator_v.items():
             if (value_k == 'l'):
               pv = integrator_v['l_pv']
@@ -170,15 +181,15 @@ class ThresholdManager:
 
             if (value_k == 'l' or value_k == 'h'):
               old_value = getattr(getattr(rt_d, t_table), '{1}_{2}'.format(t_table, integrator_k, value_k))
-              if (not self.writeThreshold(pv, value_v, pv_enable, pv_enable_value)):
+              if (not self.write_threshold(pv, value_v, pv_enable, pv_enable_value)):
                 pv_change_status = False
                 pv_names = '{}* {}={}\n'.format(pv_names,pv.pvname, value_v)
-              self.updateThreshold(rt_d, t_table, integrator_k, value_k, value_v)
+              self.update_threshold(rt_d, t_table, integrator_k, value_k, value_v, active)
               pv_name = pv.pvname
               log = log + '{}: threshold={} integrator={} type={} prev={} new={}\n'.\
                   format(pv_name, threshold_k, integrator_k, value_k, old_value, value_v)
 
-        self.addHistory(table_k, threshold_k, rt_d, t_table, user, reason)
+        self.add_history(table_k, threshold_k, rt_d, t_table, user, reason)
 
 
     log = log + "==="
@@ -190,7 +201,7 @@ class ThresholdManager:
 
     return log, '', True
 
-  def getThresholdTableName(self, table_name, integrator_name, threshold_name):
+  def get_threshold_table_name(self, table_name, integrator_name, threshold_name):
     if (table_name == 'lc2'):
       t_table = 'threshold{0}'.format(threshold_name[1])
 
@@ -234,7 +245,7 @@ class ThresholdManager:
               return error_message, False
 
           if (new_low == None or new_high == None):
-            t_table = self.getThresholdTableName(table_k, integrator_k, threshold_k)
+            t_table = self.get_threshold_table_name(table_k, integrator_k, threshold_k)
             t_type = 'h'
             if (new_low == None):
               t_type = 'l'
@@ -263,9 +274,6 @@ class ThresholdManager:
 
     return '', True
 
-  #
-  # Build a table/dictionary from the command line parameters
-  #
   def build_threshold_table(self, rt_d, t, force_write, ignore_pv, is_bpm):
     # fist check the parameters
     valid_pvs = True
@@ -414,3 +422,41 @@ class ThresholdManager:
 
     return 'OK', '', True
     
+  def get_thresholds(self, rt_d, is_bpm):
+    print('Getting thresholds')
+    pv_name = self.mps_names.getAnalogDeviceNameFromId(rt_d.mpsdb_id)
+    message = MpsManagerThresholdRequest(device_id=rt_d.mpsdb_id, device_name=rt_d.mpsdb_name,
+                                         user_name="Reader", reason=str(pv_name))
+
+    for table_k in ['lc1', 'idl', 'lc2', 'alt']:
+      if table_k == 'lc1' or table_k is 'idl':
+        thr_count = 1
+      else:
+        thr_count = 8
+      for threshold_i in range(0, thr_count):
+        threshold_k = 't{}'.format(threshold_i)
+        for integrator_i in range(0, 4):
+          integrator_k = 'i{}'.format(integrator_i)
+          t_table = self.get_threshold_table_name(table_k, integrator_k, threshold_k)
+          for value_k in ['l', 'h']:
+            t_i = threshold_i
+            if value_k == 'h':
+              t_i += thr_count
+            if table_k == 'lc1':
+              value, active = self.get_threshold(rt_d, t_table, integrator_k, value_k)
+              message.lc1_value[t_i][integrator_i] = value
+              message.lc1_active[t_i][integrator_i] = active
+            elif table_k == 'idl':
+              value, active = self.get_threshold(rt_d, t_table, integrator_k, value_k)
+              message.idl_value[t_i][integrator_i] = value
+              message.idl_active[t_i][integrator_i] = active
+            elif table_k == 'lc2':
+              value, active = self.get_threshold(rt_d, t_table, integrator_k, value_k)
+              message.lc2_value[t_i][integrator_i] = value
+              message.lc2_active[t_i][integrator_i] = active
+            else:
+              value, active = self.get_threshold(rt_d, t_table, integrator_k, value_k)
+              message.alt_value[t_i][integrator_i] = value
+              message.alt_active[t_i][integrator_i] = active
+
+    return message

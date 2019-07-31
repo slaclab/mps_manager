@@ -99,6 +99,9 @@ parser.add_argument('-idl', action='store_true', default=False, dest='idl', help
 parser.add_argument('-lc2', action='store_true', default=False, dest='lc2', help='Print only LCLS-II thresholds')
 parser.add_argument('-alt', action='store_true', default=False, dest='alt', help='Print only ALT thresholds')
 
+parser.add_argument('--port', metavar='port', type=int, default=1975, nargs='?', help='server port (default=1975)')
+parser.add_argument('--host', metavar='host', type=str, default='lcls-daemon2', nargs='?', help='server port (default=lcls-daemon2)')
+
 proc = subprocess.Popen('whoami', stdout=subprocess.PIPE)
 user = proc.stdout.readline().rstrip()
 
@@ -112,7 +115,7 @@ device_name = "None"
 if (args.device_name):
   device_name =args.device_name
 
-tm = ThresholdManagerClient()
+tm = ThresholdManagerClient(host=args.host, port=args.port)
 
 if (tm.check_device(device_id, device_name, int(MpsManagerRequestType.GET_THRESHOLD.value)) == False):
   exit(2)

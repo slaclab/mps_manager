@@ -58,6 +58,8 @@ class ReaderThread(threading.Thread):
             self.mps_manager.check_device_request(self.conn, self.dbr,
                                                   self.message.request_device_id,
                                                   self.message.request_device_name)
+        elif (self.message.request_type == int(MpsManagerRequestType.GET_THRESHOLD.value)):
+            self.mps_manager.get_threshold(self.dbr, self.message, self.conn, self.ip, self.port)
         else: # The message.request_device_id contains the app_id
             self.mps_manager.restore(self.conn, self.dbr, self.message.request_device_id)
         self.mps_manager.db_reader_end()
@@ -139,9 +141,9 @@ class MpsManager:
                   backup_file_name = '{}-{}.{}'.format(base_name.split('.')[0],
                                                        datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S'),
                                                        base_name.split('.')[1])
-              os.rename(self.log_file_name, dir_name + backup_file_name)
+              os.rename(self.log_file_name, dir_name + '/' + backup_file_name)
           try:
-              self.file = open(self.log_file_name, 'a')
+              self.file = open(self.log_file_name, 'a', 0)
           except IOError as e:
               if e.errno == errno.EACCES:
                   print('ERROR: No permission to write file {}'.format(self.log_file_name))
@@ -238,6 +240,11 @@ class MpsManager:
           writer = WriterThread(self, message, conn, ip, port)
           self.writers.append(writer)
           writer.start()
+      elif (message.request_type == int(MpsManagerRequestType.GET_THRESHOLD.value)):
+          self.log_string('Request for current device thresholds')
+          reader = ReaderThread(self, message, conn, ip, port)
+          self.readers.append(reader)
+          reader.start()
       elif (message.request_type == int(MpsManagerRequestType.DEVICE_CHECK.value)):
           self.log_string('Request for restore app thresholds')
           reader = ReaderThread(self, message, conn, ip, port, True)
@@ -264,6 +271,40 @@ class MpsManager:
       return False
 
   def check_device(self, dbr, dev_id, dev_name):
+    if (dev_id < 0):
+      try:
+        d = dbr.session.query(models.Device).filter(models.Device.name==dev_name).one()
+        dev_id = d.id
+      except Exception as e:
+          print(str(e))
+          self.log_string('ERROR: Cannot find device with name "{0}" in config database'.format(dev_name))
+          return None, "name in config database"
+    else:
+      try:
+          d = dbr.session.query(models.Device).filter(models.Device.id==dev_id).one()
+      except:
+          self.log_string('ERROR: Cannot find device with id="{0}" in config database'.format(dev_id))
+          return None, "id not in config database"
+
+    try:
+        rt_d = dbr.rt_session.query(runtime.Device).filter(runtime.Device.id==dev_id).one()
+    except Exception as e:
+        print(str(e))
+
+        self.log_string('ERROR: Cannot find device with id="{0}" in runtime database'.format(dev_id))
+        return None, "id in runtime database"
+
+    if (rt_d.mpsdb_name != d.name):
+        self.log_string('ERROR: Device names do not match in config ({0}) and runtime databases ({1})'.\
+                            format(d.name, rt_d.mpsdb_name))
+        return None, "Invalid names in config/runtime databases"
+
+    if (self.is_analog(dbr, dev_id)):
+        return rt_d, "Analog device"
+    else:
+        return rt_d, "Digital device"
+
+  def check_analog_device(self, dbr, dev_id, dev_name):
     if (dev_id < 0):
       try:
         d = dbr.session.query(models.Device).filter(models.Device.name==dev_name).one()
@@ -306,15 +347,46 @@ class MpsManager:
   def check_device_request(self, conn, dbr, device_id, device_name):
       self.log_string('Checking device id={}, name={}'.\
                           format(device_id, device_name))
-      rt_d, is_bpm = self.check_device(dbr, int(device_id), device_name)
+      rt_d, status_message = self.check_device(dbr, int(device_id), device_name)
       response = MpsManagerResponse()
       if (rt_d == None):
           response.status = int(MpsManagerResponseType.BAD_DEVICE.value)
           response.device_id = 0
+          response.status_message = 'Device not valid'
+          if (device_id < 0):
+              response.status_message += ' (name={}, '.format(device_name)
+          else:
+              response.status_message += ' (id={}, '.format(device_id)
+          response.status_message += '{})'.format(status_message)
       else:
           response.status = int(MpsManagerResponseType.OK.value)
           response.device_id = rt_d.mpsdb_id
+          response.status_message = 'Device is valid (name={}, id={}, info={})'.format(rt_d.mpsdb_name,
+                                                                                       rt_d.mpsdb_id,
+                                                                                       status_message)
       conn.send(response.pack())
+
+  def check_analog_device_request(self, conn, dbr, device_id, device_name):
+      self.log_string('Checking device id={}, name={}'.\
+                          format(device_id, device_name))
+      rt_d, is_bpm = self.check_analog_device(dbr, int(device_id), device_name)
+      response = MpsManagerResponse()
+      if (rt_d == None):
+          response.status = int(MpsManagerResponseType.BAD_DEVICE.value)
+          response.device_id = 0
+          response.status_message = 'Device not valid'
+          if (device_id < 0):
+              response.status_message += ' (name={})'.format(device_name)
+          else:
+              response.status_message += ' (id={})'.format(device_id)
+      else:
+          response.status = int(MpsManagerResponseType.OK.value)
+          response.device_id = rt_d.mpsdb_id
+          response.status_message = 'Device is valid (name={}, id={})'.format(rt_d.mpsdb_name,
+                                                                              rt_d.mpsdb_id)
+      conn.send(response.pack())
+
+      return rt_d, is_bpm
 
   def restore(self, conn, dbr, app_id):
       self.log_string('Restoring thresholds for app={}'.format(app_id))
@@ -345,18 +417,29 @@ class MpsManager:
       response.status_message = 'Thresholds restored for app {}'.format(app_id)
       conn.send(response.pack())
 
+  def get_threshold(self, dbr, message, conn, ip, port):
+      self.log_string('Getting thresholds for device id={}, name={}'.\
+                          format(message.request_device_id, message.request_device_name))
+      rt_d, is_bpm = self.check_analog_device_request(conn, dbr, int(message.request_device_id),
+                                                      message.request_device_name)
+      if rt_d == None:
+          self.log_string('Get threshold: invalid device')
+          return
+
+      tm = ThresholdManager(dbr.session, dbr.rt_session, dbr.mps_names)
+      threshold_message = tm.get_thresholds(rt_d, is_bpm)
+      threshold_message.device_name = message.request_device_name
+      threshold_message.device_id = message.request_device_id
+      conn.send(threshold_message.pack())
+
   def change_threshold(self, dbr, message, conn, ip, port):
       self.log_string('Checking device id={}, name={}'.\
                           format(message.request_device_id, message.request_device_name))
-      rt_d, is_bpm = self.check_device(dbr, int(message.request_device_id), message.request_device_name)
-      response = MpsManagerResponse()
-      if (rt_d == None):
-          response.status = int(MpsManagerResponseType.BAD_DEVICE.value)
-          response.device_id = 0
-      else:
-          response.status = int(MpsManagerResponseType.OK.value)
-          response.device_id = rt_d.mpsdb_id
-      conn.send(response.pack())
+      rt_d, is_bpm = self.check_analog_device_request(conn, dbr, int(message.request_device_id),
+                                                      message.request_device_name)
+      if rt_d == None:
+          self.log_string('Change threshold: invalid device')
+          return
 
       # Receive list of thresholds to be changed
       threshold_message = MpsManagerThresholdRequest()

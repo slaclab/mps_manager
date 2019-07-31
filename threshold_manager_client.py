@@ -12,9 +12,9 @@ from ctypes import *
 from struct import *
 
 class ThresholdManagerClient:
-  def __init__(self):
-    self.host = 'lcls-dev3'
-    self.port = 1975
+  def __init__(self, host='lcls-daemon2', port=1975):
+    self.host = host
+    self.port = port
     self.num_thresholds = 0
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self.sock.connect((self.host, self.port))
@@ -55,6 +55,12 @@ class ThresholdManagerClient:
       print(response.status_message)
       print('ERROR: Invalid device')
       return False
+
+  def get_thresholds(self):
+    thresholds = MpsManagerThresholdRequest()
+    data = self.sock.recv(thresholds.size())
+    thresholds.unpack(data)
+    return thresholds
 
   def change_thresholds(self, user, reason, dev_id, dev_name, disable):
     message = MpsManagerThresholdRequest(device_id=dev_id, device_name=dev_name,

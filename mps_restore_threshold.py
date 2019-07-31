@@ -12,37 +12,11 @@ import subprocess
 
 from argparse import RawTextHelpFormatter
 from mps_manager_protocol import *
+from threshold_manager_client import ThresholdManagerClient
 import socket
 from ctypes import *
 from struct import *
 
-class RestoreManager:
-  def __init__(self):
-    self.host = 'lcls-dev3'
-    self.port = 1975
-    self.num_thresholds = 0
-    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    self.sock.connect((self.host, self.port))
-    self.device_id = -1
-
-  def restore(self, app_id):
-    message = MpsManagerRequest(request_type=int(MpsManagerRequestType.RESTORE_APP_THRESHOLDS.value),
-                                request_device_id=app_id)
-    self.sock.send(message.pack())
-
-    response = MpsManagerResponse()
-    data = self.sock.recv(response.size())
-    response.unpack(data)
-
-    if (response.status == int(MpsManagerResponseType.OK.value)):
-      print(response.status_message)
-      return True
-    else:
-      print('ERROR: Failed to restore thresholds')
-      if (len(response.status_message) > 0):
-        print(response.status_message)
-      return False
-    
 #=== main ==================================================================================
 
 parser = argparse.ArgumentParser(description='restore thresholds for analog applications',
@@ -50,10 +24,12 @@ parser = argparse.ArgumentParser(description='restore thresholds for analog appl
 
 parser.add_argument('--app-id', metavar='app_id', type=int, nargs='?', required=True,
                     help='global application id')
+parser.add_argument('--port', metavar='port', type=int, default=1975, nargs='?', help='server port (default=1975)')
+parser.add_argument('--host', metavar='host', type=str, default='lcls-daemon2', nargs='?', help='server port (default=lcls-daemon2)')
 
 args = parser.parse_args()
 
-rm = RestoreManager()
+rm = ThresholdManagerClient(host=args.host, port=args.port)
 
 if (rm.restore(args.app_id) == False):
   exit(3)

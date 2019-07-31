@@ -1,18 +1,31 @@
 #!/bin/bash
 echo 'Starting MpsManager...'
 
+if [ $# == 1 ]; then
+    export TOP=/u/cd/lpiccoli/lcls2    
+    current_db=$TOP/mps_configuration/cu
+else
+    export TOP=$PHYSICS_TOP
+    #current_db=$TOP/mps_configuration/current
+fi
+
 go_python_file=$TOOLS/script/go_python2.7.13.bash
 if [ ! -f $go_python_file ]; then
     echo "No $go_python_file found, using system defined python settings"
+    if [ `hostname` == 'lcls-dev3' ]; then
+	pushd $TOP/mps_database
+	. ./setup.sh
+	popd
+	# Gets python 2.7.9 ...
+	. $EPICS_SETUP/go_epics_3.15.5-1.0.bash
+    fi
 else
     . $TOOLS/script/go_python2.7.13.bash
 fi
 
-export PYTHONPATH=$PHYSICS_TOP/mps_database:$PYTHON_PATH
-
-export PYTHONPATH=$PHYSICS_TOP/mps_manager:$PYTHON_PATH
-
-current_db=$PHYSICS_TOP/mps_configuration/current
+export PYTHONPATH=$TOP/mps_database:$PYTHONPATH
+export PYTHONPATH=$TOP/mps_database/tools:$PYTHONPATH
+export PYTHONPATH=$TOP/mps_manager:$PYTHONPATH
 
 log_file=$PHYSICS_DATA/mps_manager/mps_manager-`date +"%m-%d-%Y_%H:%M:%S"`.log
 
@@ -28,4 +41,6 @@ fi
 
 db_file=`ls -1 $current_db/mps_config*.db | grep -v runtime`
 
-$PHYSICS_TOP/mps_manager/mps_manager.py --log-file $log_file --hb SIOC:SYS0:ML00:AO500 $db_file &
+echo "Using this runtime database: " $db_file
+
+$TOP/mps_manager/mps_manager.py --log-file $log_file --hb SIOC:SYS0:ML00:AO500 $db_file
