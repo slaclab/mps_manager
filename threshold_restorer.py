@@ -28,10 +28,12 @@ class ThresholdRestorer:
   threshold_index = ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7',
                      't0', 't1', 't2', 't3', 't4', 't5', 't6', 't7',
                      't0', 't0']
-  """
-  Restore thresholds of analog devices - using latest thresholds saved in database
-  """
   def __init__(self, db=None, rt_db=None, mps_names=None, force_write=False, verbose=False):
+    """
+    Restore thresholds of analog devices - using latest thresholds saved in database
+    force_write: True -> ignore PV read-only errors
+                 False -> return error when writing to read-only PVs
+    """
     self.session = db
     self.rt_session = rt_db
     self.mps_names = mps_names
@@ -133,19 +135,30 @@ class ThresholdRestorer:
  
     return restore_list
 
-  def check_pvs(self, restore_list):
+  def check_pvs(self, restore_list, max_fail_pvs=0):
     """
     Check if the PVs in the restore list are available
+    max_fail_pvs: number of PVs allowed to fail (host==None) before returning, if 0 then test them all
     """
+    fail_count = 0
+    if (self.verbose):
+      print('Checking PVs...')
     valid_pvs = True
     bad_pv_names = ''
     for restore_item in restore_list:
+      print(restore_item['pv'].pvname)
       if (restore_item['pv'].host == None):
         valid_pvs = False
         bad_pv_names = '{} * {}\n'.format(bad_pv_names, restore_item['pv'].pvname)
+        fail_count += 1
+      print(restore_item['pv_enable'].pvname)
       if (restore_item['pv_enable'].host == None):
         valid_pvs = False
         bad_pv_names = '{} * {}\n'.format(bad_pv_names, restore_item['pv_enable'].pvname)
+        fail_count += 1
+      # Give up if to many PVs fail to connect
+      if (max_fail_pvs > 0 and fail_count >= max_fail_pvs):
+        break;
     
     if (not valid_pvs):
       self.error_message = 'ERROR: PV(s) cannot be reached, threshold change not allowed.'
@@ -153,6 +166,8 @@ class ThresholdRestorer:
       print(bad_pv_names)
       return False
 
+    if (self.verbose):
+      print('done.')
     return True
 
   def do_restore(self, restore_list):
@@ -230,7 +245,7 @@ class ThresholdRestorer:
       return False
       
     restore_list = self.get_restore_list(devices)
-    if (not self.check_pvs(restore_list)):
+    if (not self.check_pvs(restore_list, max_fail_pvs=2)):
       return False
 
     if (not self.do_restore(restore_list)):

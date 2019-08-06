@@ -117,10 +117,11 @@ class MpsManager:
       self.readers = []
       self.writers = []
 
-      self.hb_pv = PV(hb_pv_name)
-      if (self.hb_pv.host == None):
-          print('ERROR: Cannot connect to specified heart beat PV ({})'.format(hb_pv_name))
-          exit(1)
+      if (hb_pv_name != None):
+          self.hb_pv = PV(hb_pv_name)
+          if (self.hb_pv.host == None):
+              print('ERROR: Cannot connect to specified heart beat PV ({})'.format(hb_pv_name))
+              exit(1)
 
       try:
           self.tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -225,7 +226,8 @@ class MpsManager:
   def heartbeat(self):
       self.hb_count += 1
       try:
-          self.hb_pv.put(self.hb_count)
+          if (self.hb_pv != None):
+              self.hb_pv.put(self.hb_count)
       except epics.ca.CASeverityException:
           self.log_string('ERROR: Cannot update heartbeat PV ({})'.format(self.hb_pv.pvname)) 
 
@@ -391,7 +393,8 @@ class MpsManager:
   def restore(self, conn, dbr, app_id):
       self.log_string('Restoring thresholds for app={}'.format(app_id))
       # Restore thresholds here
-      tr = ThresholdRestorer(dbr.session, dbr.rt_session, dbr.mps_names, False, True)
+      tr = ThresholdRestorer(db=dbr.session, rt_db=dbr.rt_session, mps_names=dbr.mps_names, 
+                             force_write=False, verbose=True)
 
       response = MpsManagerResponse()
       if (tr.restore(app_id) == False):
@@ -483,7 +486,8 @@ if __name__ == "__main__":
     parser.add_argument('--log-file', metavar='log_file', type=str, nargs='?',
                         help='MpsManager log file base, e.g. /data/mps_manager/server.log')
     parser.add_argument('-c', action='store_true', default=False, dest='stdout', help='Print log messages to stdout')
-    parser.add_argument('--hb', metavar='PV', type=str, nargs='?', required=True, help='PV used as heart beat by the server')
+    parser.add_argument('--hb', metavar='PV', type=str, nargs='?', 
+                        default=None, required=False, help='PV used as heart beat by the server')
 
     args = parser.parse_args()
 
