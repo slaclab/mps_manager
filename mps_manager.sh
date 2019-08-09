@@ -6,10 +6,12 @@ if [ $# == 1 ]; then
     current_db=$TOP/mps_configuration/cu
 else
     export TOP=$PHYSICS_TOP
-    #current_db=$TOP/mps_configuration/current
+    current_db=$TOP/mps_configuration/current
+    echo $current_db
 fi
 
 go_python_file=$TOOLS/script/go_python2.7.13.bash
+
 if [ ! -f $go_python_file ]; then
     echo "No $go_python_file found, using system defined python settings"
     if [ `hostname` == 'lcls-dev3' ]; then
@@ -20,6 +22,8 @@ if [ ! -f $go_python_file ]; then
 	. $EPICS_SETUP/go_epics_3.15.5-1.0.bash
     fi
 else
+    . $EPICS_SETUP/fixed-epics-setup.bash
+    . $EPICS_SETUP/epicsenv-7.0.2-1.0.bash
     . $TOOLS/script/go_python2.7.13.bash
 fi
 
@@ -43,4 +47,4 @@ db_file=`ls -1 $current_db/mps_config*.db | grep -v runtime`
 
 echo "Using this runtime database: " $db_file
 
-$TOP/mps_manager/mps_manager.py --log-file $log_file --hb SIOC:SYS0:ML00:AO500 $db_file
+$TOP/mps_manager/mps_manager.py --log-file $log_file --hb SIOC:SYS2:ML00:AO500 $db_file
