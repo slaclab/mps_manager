@@ -12,6 +12,8 @@ mps_manager-R1-0-1: (31 Jul 2019)
   * Renamed client commands to 'mps_<command>.py'
   * Added README.md file
   * Added command to get device thresholds from database
+  * After failing to connect to 2 PVs the restore operation fails
+    and return
 
 mps_manager-R1-0-0: (Jun 2019)
   * First release - TCP server processes requests to check device,
