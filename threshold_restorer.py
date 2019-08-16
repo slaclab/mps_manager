@@ -113,6 +113,8 @@ class ThresholdRestorer:
         is_bpm = True
 
       threshold_list = self.rt.get_thresholds(d)
+      if (threshold_list == None):
+        return restore_list
 
       for threshold_item in threshold_list:
         restore_item = {}
@@ -245,6 +247,9 @@ class ThresholdRestorer:
       return False
       
     restore_list = self.get_restore_list(devices)
+    if (len(restore_list) == 0):
+      return False
+    
     if (not self.check_pvs(restore_list, max_fail_pvs=2)):
       return False
 
