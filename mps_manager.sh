@@ -1,16 +1,19 @@
 #!/bin/bash
 echo 'Starting MpsManager...'
 
-if [ $# == 1 ]; then
-    export TOP=/u/cd/lpiccoli/lcls2    
-    current_db=$TOP/mps_configuration/cu
+log_file=$PHYSICS_DATA/mps_manager/mps_manager-`date +"%m-%d-%Y_%H:%M:%S"`.log
+if [ $1 = "eic" ]; then
+    export TOP=$PHYSICS_TOP 
+    current_db=$TOP/mps_configuration/current/
+    log_file=$PHYSICS_DATA/mps_manager/mps_manager-eic-`date +"%m-%d-%Y_%H:%M:%S"`.log
 else
     export TOP=$PHYSICS_TOP
-    current_db=$TOP/mps_configuration/current
-    echo $current_db
+    current_db=$TOP/mps_configuration/cu
+    log_file=$PHYSICS_DATA/mps_manager/mps_manager-cu-`date +"%m-%d-%Y_%H:%M:%S"`.log
 fi
+    echo 'Log File:' $log_file
 
-go_python_file=$TOOLS/script/go_python2.7.13.bash
+go_python_file=$TOOLS/script/go_python2.7.13-x86_64.bash
 
 if [ ! -f $go_python_file ]; then
     echo "No $go_python_file found, using system defined python settings"
@@ -23,15 +26,13 @@ if [ ! -f $go_python_file ]; then
     fi
 else
     . $EPICS_SETUP/fixed-epics-setup.bash
-    . $EPICS_SETUP/epicsenv-7.0.2-1.0.bash
-    . $TOOLS/script/go_python2.7.13.bash
+    . $EPICS_SETUP/epicsenv-7.0.2-1.1.bash
+    . $TOOLS/script/go_python2.7.13-x86_64.bash
 fi
 
 export PYTHONPATH=$TOP/mps_database:$PYTHONPATH
 export PYTHONPATH=$TOP/mps_database/tools:$PYTHONPATH
 export PYTHONPATH=$TOP/mps_manager:$PYTHONPATH
-
-log_file=$PHYSICS_DATA/mps_manager/mps_manager-`date +"%m-%d-%Y_%H:%M:%S"`.log
 
 files=`ls -1 $current_db/mps_config*.db | grep -v runtime | wc -l`
 
@@ -47,4 +48,4 @@ db_file=`ls -1 $current_db/mps_config*.db | grep -v runtime`
 
 echo "Using this runtime database: " $db_file
 
-$TOP/mps_manager/mps_manager.py --log-file $log_file --hb SIOC:SYS2:ML00:AO500 $db_file
+$TOP/mps_manager/mps_manager.py --log-file $log_file --hb SIOC:SYS0:ML07:AO002 $db_file

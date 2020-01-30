@@ -8,6 +8,11 @@
 #  Auth: 31-Jul-2019, L.Piccoli (lpiccoli)
 #  Rev:  dd-mmm-yyyy, Reviewer's Name    (USERNAME)
 #--------------------------------------------------------------
+mps_manager-R1-0-3: (16 Aug 2019)
+  * Add sleep in function to check PVs before restore to give
+    IOC time to establish itself on network
+  * Add second try in check PV function in case first time fails
+
 mps_manager-R1-0-2: (16 Aug 2019)
   * Addition of PV list check before restoring thresholds
   * Needs mps_database-R2-0-3

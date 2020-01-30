@@ -142,6 +142,8 @@ class ThresholdRestorer:
     Check if the PVs in the restore list are available
     max_fail_pvs: number of PVs allowed to fail (host==None) before returning, if 0 then test them all
     """
+    print('Sleep...')
+    time.sleep(10)
     fail_count = 0
     if (self.verbose):
       print('Checking PVs...')
@@ -232,10 +234,30 @@ class ThresholdRestorer:
       
     release_pv.disconnect()
 
+    enable_pv = PV('{}:MPS_EN'.format(self.app.get_pv_name()))
+
+    if (self.verbose):
+      sys.stdout.write('Releasing IOC (setting {})...'.format(enable_pv.pvname))
+
+    # do release
+    if (enable_pv.host == None):
+      print('ERROR: Failed to read release PV {}'.format(enable_pv.pvname))
+      return False
+
+    try:
+      enable_pv.put(1)
+    except epics.ca.CASeverityException:
+      print('ERROR: Tried to write to a read-only PV ({}=1)'.\
+              format(enable_pv.pvname))
+      return False
+      
+    enable_pv.disconnect()
+
     if (self.verbose):
       print(' done.')
 
   def restore(self, app_id, release=False):
+    tries = 0
     app = self.check_app(app_id)
     if (app == None):
       return False
@@ -251,7 +273,11 @@ class ThresholdRestorer:
       return False
     
     if (not self.check_pvs(restore_list, max_fail_pvs=2)):
-      return False
+      tries += 1
+    
+    if (tries == 1):
+          if (not self.check_pvs(restore_list, max_fail_pvs=2)):
+            return False
 
     if (not self.do_restore(restore_list)):
       return False
