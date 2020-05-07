@@ -2,10 +2,10 @@
 echo 'Starting MpsManager...'
 
 log_file=$PHYSICS_DATA/mps_manager/mps_manager-`date +"%m-%d-%Y_%H:%M:%S"`.log
-if [ $1 = "eic" ]; then
-    export TOP=$PHYSICS_TOP 
-    current_db=$TOP/mps_configuration/current/
-    log_file=$PHYSICS_DATA/mps_manager/mps_manager-eic-`date +"%m-%d-%Y_%H:%M:%S"`.log
+if [ $1 = "dev" ]; then
+    export TOP=/afs/slac/u/ld/jmock/Cosylab/workspace/
+    current_db=$TOP/mps_database/
+    log_file=$PHYSICS_DATA/mps_manager/mps_manager-dev-`date +"%m-%d-%Y_%H:%M:%S"`.log
 else
     export TOP=$PHYSICS_TOP
     current_db=$TOP/mps_configuration/cu
@@ -15,9 +15,9 @@ fi
 
 go_python_file=$TOOLS/script/go_python2.7.13-x86_64.bash
 
-if [ ! -f $go_python_file ]; then
-    echo "No $go_python_file found, using system defined python settings"
-    if [ `hostname` == 'lcls-dev3' ]; then
+if [ `hostname` == 'lcls-dev1' ]; then
+    echo "Host: `hostname`, using virtual python environment"
+    if [ `hostname` == 'lcls-dev1' ]; then
 	pushd $TOP/mps_database
 	. ./setup.sh
 	popd
@@ -30,7 +30,7 @@ else
     . $TOOLS/script/go_python2.7.13-x86_64.bash
 fi
 
-export PYTHONPATH=$TOP/mps_database:$PYTHONPATH
+export PYTHONPATH=$TOP/mps_database/:$PYTHONPATH
 export PYTHONPATH=$TOP/mps_database/tools:$PYTHONPATH
 export PYTHONPATH=$TOP/mps_manager:$PYTHONPATH
 
