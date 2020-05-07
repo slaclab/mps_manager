@@ -8,6 +8,9 @@
 #  Auth: 31-Jul-2019, L.Piccoli (lpiccoli)
 #  Rev:  dd-mmm-yyyy, Reviewer's Name    (USERNAME)
 #--------------------------------------------------------------
+mps_manager-R1-0-4: (7 May 2020)
+  * Update mps_manager.sh for running in dev on lcls-dev1
+
 mps_manager-R1-0-3: (16 Aug 2019)
   * Add sleep in function to check PVs before restore to give
     IOC time to establish itself on network
