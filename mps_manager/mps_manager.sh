@@ -3,8 +3,8 @@ echo 'Starting MpsManager...'
 
 log_file=$PHYSICS_DATA/mps_manager/mps_manager-`date +"%m-%d-%Y_%H:%M:%S"`.log
 if [ $1 = "dev" ]; then
-    export TOP=/afs/slac/u/ld/jmock/Cosylab/workspace/
-    current_db=$TOP/mps_database/
+    export TOP=$PHYSICS_TOP
+    current_db=$TOP/mps_configuration/cu
     log_file=$PHYSICS_DATA/mps_manager/mps_manager-dev-`date +"%m-%d-%Y_%H:%M:%S"`.log
 else
     export TOP=$PHYSICS_TOP

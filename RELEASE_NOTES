@@ -8,6 +8,9 @@
 #  Auth: 31-Jul-2019, L.Piccoli (lpiccoli)
 #  Rev:  dd-mmm-yyyy, Reviewer's Name    (USERNAME)
 #--------------------------------------------------------------
+mps_manager-R1-0-5: (15 May 2020)
+  * Update threshold_manager_client.py for use when called from python display
+
 mps_manager-R1-0-4: (7 May 2020)
   * Update mps_manager.sh for running in dev on lcls-dev1
 
