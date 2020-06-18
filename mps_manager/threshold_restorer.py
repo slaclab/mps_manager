@@ -68,7 +68,7 @@ class ThresholdRestorer:
       print(self.error_message)
       print('Name: {}'.format(self.app.name))
       print('Description: {}'.format(self.app.description))
-      print('Crate: {}, Slot: {}'.format(self.app.crate.get_name(), app.slot_number))
+      print('Crate: {}, Slot: {}'.format(self.app.crate.get_name(), self.app.slot_number))
       return None
 
     print('Name: {}'.format(self.app.name))
