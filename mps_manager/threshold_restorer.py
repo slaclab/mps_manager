@@ -55,7 +55,7 @@ class ThresholdRestorer:
           filter(models.ApplicationCard.global_id==app_id).one()
     except:
       self.error_message='ERROR: Cannot find application with global id {}.'.format(app_id)
-      print(self.error_message)
+      print((self.error_message))
       return None
 
     if (self.verbose):
@@ -65,15 +65,15 @@ class ThresholdRestorer:
     if (len(self.app.analog_channels) == 0):
       self.error_message='ERROR: There are no analog channels defined for this application (global id={})'.\
           format(app_id)
-      print(self.error_message)
-      print('Name: {}'.format(self.app.name))
-      print('Description: {}'.format(self.app.description))
-      print('Crate: {}, Slot: {}'.format(self.app.crate.get_name(), self.app.slot_number))
+      print((self.error_message))
+      print(('Name: {}'.format(self.app.name)))
+      print(('Description: {}'.format(self.app.description)))
+      print(('Crate: {}, Slot: {}'.format(self.app.crate.get_name(), self.app.slot_number)))
       return None
 
-    print('Name: {}'.format(self.app.name))
-    print('Description: {}'.format(self.app.description))
-    print('Crate: {}, Slot: {}'.format(self.app.crate.get_name(), self.app.slot_number))
+    print(('Name: {}'.format(self.app.name)))
+    print(('Description: {}'.format(self.app.description)))
+    print(('Crate: {}, Slot: {}'.format(self.app.crate.get_name(), self.app.slot_number)))
 
     return self.app
 
@@ -125,7 +125,7 @@ class ThresholdRestorer:
           restore_item['value'] = threshold_item['value']
           restore_list.append(restore_item)
           if (self.verbose):
-            print('{}={}'.format(threshold_item['pv'].pvname, threshold_item['value']))
+            print(('{}={}'.format(threshold_item['pv'].pvname, threshold_item['value'])))
         else:
           if (threshold_item['pv'] != None):
             threshold_item['pv'].disconnect()
@@ -150,12 +150,12 @@ class ThresholdRestorer:
     valid_pvs = True
     bad_pv_names = ''
     for restore_item in restore_list:
-      print(restore_item['pv'].pvname)
+      print((restore_item['pv'].pvname))
       if (restore_item['pv'].host == None):
         valid_pvs = False
         bad_pv_names = '{} * {}\n'.format(bad_pv_names, restore_item['pv'].pvname)
         fail_count += 1
-      print(restore_item['pv_enable'].pvname)
+      print((restore_item['pv_enable'].pvname))
       if (restore_item['pv_enable'].host == None):
         valid_pvs = False
         bad_pv_names = '{} * {}\n'.format(bad_pv_names, restore_item['pv_enable'].pvname)
@@ -184,7 +184,7 @@ class ThresholdRestorer:
       except epics.ca.CASeverityException:
         self.error_message='ERROR: Tried to write to a read-only PV ({}={})'.\
             format(restore_item['pv'].pvname, restore_item['value'])
-        print self.error_message
+        print(self.error_message)
         if (self.force_write):
           return True
         else:
@@ -195,7 +195,7 @@ class ThresholdRestorer:
       except epics.ca.CASeverityException:
         self.error_message='ERROR: Tried to write to a read-only PV ({}=1)'.\
             format(restore_item['pv_enable'].pvname)
-        print self.error_message
+        print(self.error_message)
         if (self.force_write):
           return True
         else:
@@ -222,14 +222,14 @@ class ThresholdRestorer:
 
     # do release
     if (release_pv.host == None):
-      print('ERROR: Failed to read release PV {}'.format(release_pv.pvname))
+      print(('ERROR: Failed to read release PV {}'.format(release_pv.pvname)))
       return False
 
     try:
       release_pv.put(1)
     except epics.ca.CASeverityException:
-      print('ERROR: Tried to write to a read-only PV ({}=1)'.\
-              format(release_pv.pvname))
+      print(('ERROR: Tried to write to a read-only PV ({}=1)'.\
+              format(release_pv.pvname)))
       return False
       
     release_pv.disconnect()
@@ -241,14 +241,14 @@ class ThresholdRestorer:
 
     # do release
     if (enable_pv.host == None):
-      print('ERROR: Failed to read release PV {}'.format(enable_pv.pvname))
+      print(('ERROR: Failed to read release PV {}'.format(enable_pv.pvname)))
       return False
 
     try:
       enable_pv.put(1)
     except epics.ca.CASeverityException:
-      print('ERROR: Tried to write to a read-only PV ({}=1)'.\
-              format(enable_pv.pvname))
+      print(('ERROR: Tried to write to a read-only PV ({}=1)'.\
+              format(enable_pv.pvname)))
       return False
       
     enable_pv.disconnect()
@@ -265,7 +265,7 @@ class ThresholdRestorer:
     devices = self.check_devices(app)
     if (devices == None):
       self.error_message = 'ERROR: found no devices for application {}'.format(app_id)
-      print(self.error_message)
+      print((self.error_message))
       return False
       
     restore_list = self.get_restore_list(devices)

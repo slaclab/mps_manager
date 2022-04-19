@@ -30,12 +30,12 @@ class ThresholdManagerClient:
     response.unpack(data)
 
     if (response.status == int(MpsManagerResponseType.OK.value)):
-      print(response.status_message)
+      print((response.status_message))
       return True
     else:
       print('ERROR: Failed to restore thresholds')
       if (len(response.status_message) > 0):
-        print(response.status_message)
+        print((response.status_message))
       return False
 
   def check_device(self, dev_id, dev_name, request_type=int(MpsManagerRequestType.DEVICE_CHECK.value)):
@@ -49,10 +49,10 @@ class ThresholdManagerClient:
 
     if (response.status == int(MpsManagerResponseType.OK.value)):
       self.device_id = response.device_id
-      print(response.status_message)
+      print((response.status_message))
       return True
     else:
-      print(response.status_message)
+      print((response.status_message))
       print('ERROR: Invalid device')
       return False
 
@@ -71,15 +71,15 @@ class ThresholdManagerClient:
     else:
       message.disable = 0
 
-    for thr_table, v in self.table.items(): # lc1, lc2, idl or aln
+    for thr_table, v in list(self.table.items()): # lc1, lc2, idl or aln
 #      print thr_table
-      for thr_index, v2 in v.items(): # T0 through T7
+      for thr_index, v2 in list(v.items()): # T0 through T7
 #        print ' ' + thr_index
         thr_index_index = int(thr_index[1])
-        for thr_integrator, v3 in v2.items(): # I0 through I4
+        for thr_integrator, v3 in list(v2.items()): # I0 through I4
 #          print('  ' + thr_integrator)
           thr_int_index = int(thr_integrator[1])
-          for thr_type, thr_value in v3.items(): # LOLO or HIHI
+          for thr_type, thr_value in list(v3.items()): # LOLO or HIHI
             thr_type_index = 0 if thr_type == 'l' else  1
 #            print('    {} = {}'.format(thr_type, thr_value))
             if thr_table == 'lc1':
@@ -102,7 +102,7 @@ class ThresholdManagerClient:
     response.unpack(data)
 
     if response.status != 0:
-      print('ERROR: Operation failed - {}'.format(response.message))
+      print(('ERROR: Operation failed - {}'.format(response.message)))
 
   #
   # build a table/dictionary from the command line parameters
@@ -122,9 +122,9 @@ class ThresholdManagerClient:
           table_name != 'alt' and
           table_name != 'lc1' and
           table_name != 'idl'):
-        print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-            format(table_name, integrator, t_index)
-        print 'ERROR: invalid table "{0}" (parameter={})'.format(l[0], l)
+        print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+            format(table_name, integrator, t_index))
+        print('ERROR: invalid table "{0}" (parameter={})'.format(l[0], l))
         return False
 
       if (not (((integrator.startswith('i')) and
@@ -134,44 +134,44 @@ class ThresholdManagerClient:
                integrator=='x' or
                integrator=='y' or
                integrator=='tmit')):
-        print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-            format(table_name, integrator, t_index)
-        print 'ERROR: invalid integrator "{}" (parameter={})'.format(integrator, l)
+        print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+            format(table_name, integrator, t_index))
+        print('ERROR: invalid integrator "{}" (parameter={})'.format(integrator, l))
         return False
 
       if (not (t_index.startswith('t'))):
-        print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-            format(table_name, integrator, t_index)
-        print 'ERROR: invalid threshold "{}", must start with t (parameter={})'.format(t_index, l)
+        print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+            format(table_name, integrator, t_index))
+        print('ERROR: invalid threshold "{}", must start with t (parameter={})'.format(t_index, l))
         return False
       else:
         if (len(t_index) != 2):
-          print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-              format(table_name, integrator, t_index)
-          print 'ERROR: invalid threshold "{}", must be in t<index> format (parameter={})'.format(t_index, l)
+          print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+              format(table_name, integrator, t_index))
+          print('ERROR: invalid threshold "{}", must be in t<index> format (parameter={})'.format(t_index, l))
           return False
         else:
           if (table_name == 'lc2' or table_name == 'alt'):
             if (int(t_index[1])<0 or int(t_index[1])>7):
-              print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-                  format(table_name, integrator, t_index)
-              print 'ERROR: invalid threshold index "{}", must be between 0 and 7 (parameter={})'.\
-                  format(t_index[1], l)
+              print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+                  format(table_name, integrator, t_index))
+              print('ERROR: invalid threshold index "{}", must be between 0 and 7 (parameter={})'.\
+                  format(t_index[1], l))
               return False
           else:
             if (int(t_index[1]) != 0):
-              print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-                  format(table_name, integrator, t_index)
-              print 'ERROR: invalid threshold index "{}", must be 0'.\
-                  format(t_index[1], l)
+              print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+                  format(table_name, integrator, t_index))
+              print('ERROR: invalid threshold index "{}", must be 0'.\
+                  format(t_index[1], l))
               return False
 
       if (not (t_type == 'lolo' or
                t_type == 'hihi')):
-        print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-            format(table_name, integrator, t_index)
-        print 'ERROR: invalid threshold type "{}", must be lolo or hihi (parameter={})'.\
-            format(t_type, l)
+        print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+            format(table_name, integrator, t_index))
+        print('ERROR: invalid threshold type "{}", must be lolo or hihi (parameter={})'.\
+            format(t_type, l))
         return False
 
     # build a dictionary with the input parameters
@@ -200,16 +200,16 @@ class ThresholdManagerClient:
       if (t_type == 'hihi'):
         t_type = 'h'
 
-      if (not table_name in self.table.keys()):
+      if (not table_name in list(self.table.keys())):
         self.table[table_name]={}
 
-      if (not t_index in self.table[table_name].keys()):
+      if (not t_index in list(self.table[table_name].keys())):
         self.table[table_name][t_index]={}
 
-      if (not integrator in self.table[table_name][t_index].keys()):
+      if (not integrator in list(self.table[table_name][t_index].keys())):
         self.table[table_name][t_index][integrator]={}
 
-      if (not t_type in self.table[table_name][t_index][integrator].keys()):
+      if (not t_type in list(self.table[table_name][t_index][integrator].keys())):
         self.table[table_name][t_index][integrator][t_type]=value
 
     return True
@@ -227,9 +227,9 @@ class ThresholdManagerClient:
           table_name != 'alt' and
           table_name != 'lc1' and
           table_name != 'idl'):
-        print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-            format(table_name, integrator, t_index)
-        print 'ERROR: invalid table "{0}" (parameter={})'.format(l[0], l)
+        print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+            format(table_name, integrator, t_index))
+        print('ERROR: invalid table "{0}" (parameter={})'.format(l[0], l))
         return False
 
       if (not (((integrator.startswith('i')) and
@@ -239,44 +239,44 @@ class ThresholdManagerClient:
                integrator=='x' or
                integrator=='y' or
                integrator=='tmit')):
-        print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-            format(table_name, integrator, t_index)
-        print 'ERROR: invalid integrator "{}" (parameter={})'.format(integrator, l)
+        print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+            format(table_name, integrator, t_index))
+        print('ERROR: invalid integrator "{}" (parameter={})'.format(integrator, l))
         return False
 
       if (not (t_index.startswith('t'))):
-        print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-            format(table_name, integrator, t_index)
-        print 'ERROR: invalid threshold "{}", must start with t (parameter={})'.format(t_index, l)
+        print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+            format(table_name, integrator, t_index))
+        print('ERROR: invalid threshold "{}", must start with t (parameter={})'.format(t_index, l))
         return False
       else:
         if (len(t_index) != 2):
-          print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-              format(table_name, integrator, t_index)
-          print 'ERROR: invalid threshold "{}", must be in t<index> format (parameter={})'.format(t_index, l)
+          print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+              format(table_name, integrator, t_index))
+          print('ERROR: invalid threshold "{}", must be in t<index> format (parameter={})'.format(t_index, l))
           return False
         else:
           if (table_name == 'lc2' or table_name == 'alt'):
             if (int(t_index[1])<0 or int(t_index[1])>7):
-              print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-                  format(table_name, integrator, t_index)
-              print 'ERROR: invalid threshold index "{}", must be between 0 and 7 (parameter={})'.\
-                  format(t_index[1], l)
+              print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+                  format(table_name, integrator, t_index))
+              print('ERROR: invalid threshold index "{}", must be between 0 and 7 (parameter={})'.\
+                  format(t_index[1], l))
               return False
           else:
             if (int(t_index[1]) != 0):
-              print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-                  format(table_name, integrator, t_index)
-              print 'ERROR: invalid threshold index "{}", must be 0'.\
-                  format(t_index[1], l)
+              print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+                  format(table_name, integrator, t_index))
+              print('ERROR: invalid threshold index "{}", must be 0'.\
+                  format(t_index[1], l))
               return False
 
       if (not (t_type == 'lolo' or
                t_type == 'hihi')):
-        print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-            format(table_name, integrator, t_index)
-        print 'ERROR: invalid threshold type "{}", must be lolo or hihi (parameter={})'.\
-            format(t_type, l)
+        print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+            format(table_name, integrator, t_index))
+        print('ERROR: invalid threshold type "{}", must be lolo or hihi (parameter={})'.\
+            format(t_type, l))
         return False
 
     # build a dictionary with the input parameters
@@ -302,16 +302,16 @@ class ThresholdManagerClient:
       if (t_type == 'hihi'):
         t_type = 'h'
 
-      if (not table_name in self.table.keys()):
+      if (not table_name in list(self.table.keys())):
         self.table[table_name]={}
 
-      if (not t_index in self.table[table_name].keys()):
+      if (not t_index in list(self.table[table_name].keys())):
         self.table[table_name][t_index]={}
 
-      if (not integrator in self.table[table_name][t_index].keys()):
+      if (not integrator in list(self.table[table_name][t_index].keys())):
         self.table[table_name][t_index][integrator]={}
 
-      if (not t_type in self.table[table_name][t_index][integrator].keys()):
+      if (not t_type in list(self.table[table_name][t_index][integrator].keys())):
         self.table[table_name][t_index][integrator][t_type]=value
 
       return True

@@ -19,7 +19,7 @@ from ctypes import *
 from struct import *
 
 def print_thresholds(title, values, active, only_active):
-  print('== {}'.format(title))
+  print(('== {}'.format(title)))
   t_count = len(values) / 2
 
   no_active_thresholds = True
@@ -62,7 +62,7 @@ def print_thresholds(title, values, active, only_active):
       row.append(val)
     table.append(row)
 
-    print(tabulate(table, tablefmt='simple'))
+    print((tabulate(table, tablefmt='simple')))
 
   if no_active_thresholds:
     print("* No active thresholds")
