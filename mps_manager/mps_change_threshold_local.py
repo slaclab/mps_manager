@@ -39,9 +39,9 @@ def build_threshold_table(t):
         table_name != 'alt' and
         table_name != 'lc1' and
         table_name != 'idl'):
-      print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-          format(table_name, integrator, t_index)
-      print 'ERROR: invalid table "{0}" (parameter={})'.format(l[0], l)
+      print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+          format(table_name, integrator, t_index))
+      print('ERROR: invalid table "{0}" (parameter={})'.format(l[0], l))
       return False
 
     if (not (((integrator.startswith('i')) and
@@ -51,44 +51,44 @@ def build_threshold_table(t):
              integrator=='x' or
              integrator=='y' or
              integrator=='tmit')):
-      print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-          format(table_name, integrator, t_index)
-      print 'ERROR: invalid integrator "{}" (parameter={})'.format(integrator, l)
+      print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+          format(table_name, integrator, t_index))
+      print('ERROR: invalid integrator "{}" (parameter={})'.format(integrator, l))
       return False
 
     if (not (t_index.startswith('t'))):
-      print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-          format(table_name, integrator, t_index)
-      print 'ERROR: invalid threshold "{}", must start with t (parameter={})'.format(t_index, l)
+      print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+          format(table_name, integrator, t_index))
+      print('ERROR: invalid threshold "{}", must start with t (parameter={})'.format(t_index, l))
       return False
     else:
       if (len(t_index) != 2):
-        print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-            format(table_name, integrator, t_index)
-        print 'ERROR: invalid threshold "{}", must be in t<index> format (parameter={})'.format(t_index, l)
+        print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+            format(table_name, integrator, t_index))
+        print('ERROR: invalid threshold "{}", must be in t<index> format (parameter={})'.format(t_index, l))
         return False
       else:
         if (table_name == 'lc2' or table_name == 'alt'):
           if (int(t_index[1])<0 or int(t_index[1])>7):
-            print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-                format(table_name, integrator, t_index)
-            print 'ERROR: invalid threshold index "{}", must be between 0 and 7 (parameter={})'.\
-                format(t_index[1], l)
+            print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+                format(table_name, integrator, t_index))
+            print('ERROR: invalid threshold index "{}", must be between 0 and 7 (parameter={})'.\
+                format(t_index[1], l))
             return False
         else:
           if (int(t_index[1]) != 0):
-            print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-                format(table_name, integrator, t_index)
-            print 'ERROR: invalid threshold index "{}", must be 0'.\
-                format(t_index[1], l)
+            print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+                format(table_name, integrator, t_index))
+            print('ERROR: invalid threshold index "{}", must be 0'.\
+                format(t_index[1], l))
             return False
 
     if (not (t_type == 'lolo' or
              t_type == 'hihi')):
-      print 'ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
-          format(table_name, integrator, t_index)
-      print 'ERROR: invalid threshold type "{}", must be lolo or hihi (parameter={})'.\
-          format(t_type, l)
+      print('ERROR: invalid thresholds for table {}, integrator {}, threshold {}'.\
+          format(table_name, integrator, t_index))
+      print('ERROR: invalid threshold type "{}", must be lolo or hihi (parameter={})'.\
+          format(t_type, l))
       return False
 
   # build a dictionary with the input parameters
@@ -117,25 +117,25 @@ def build_threshold_table(t):
     if (t_type == 'hihi'):
       t_type = 'h'
 
-    if (not table_name in table.keys()):
+    if (not table_name in list(table.keys())):
       table[table_name]={}
 
-    if (not t_index in table[table_name].keys()):
+    if (not t_index in list(table[table_name].keys())):
       table[table_name][t_index]={}
 
-    if (not integrator in table[table_name][t_index].keys()):
+    if (not integrator in list(table[table_name][t_index].keys())):
       table[table_name][t_index][integrator]={}
 
-    if (not t_type in table[table_name][t_index][integrator].keys()):
+    if (not t_type in list(table[table_name][t_index][integrator].keys())):
       table[table_name][t_index][integrator][t_type]=value
 
   message = MpsManagerThresholdRequest()
-  for thr_table, v in table.items(): # lc1, lc2, idl or aln
-    for thr_index, v2 in v.items(): # T0 through T7
+  for thr_table, v in list(table.items()): # lc1, lc2, idl or aln
+    for thr_index, v2 in list(v.items()): # T0 through T7
       thr_index_index = int(thr_index[1])
-      for thr_integrator, v3 in v2.items(): # I0 through I4
+      for thr_integrator, v3 in list(v2.items()): # I0 through I4
         thr_int_index = int(thr_integrator[1])
-        for thr_type, thr_value in v3.items(): # LOLO or HIHI
+        for thr_type, thr_value in list(v3.items()): # LOLO or HIHI
           thr_type_index = 0 if thr_type == 'l' else  1
           if thr_table == 'lc1':
             message.lc1_active[thr_type_index][thr_int_index] = 1
@@ -159,7 +159,7 @@ def is_analog(dbr, dev_id):
   else:
     digital_devices = dbr.session.query(models.DigitalDevice).filter(models.DigitalDevice.id==dev_id).all()
     if (len(digital_devices)==0):
-      print('ERROR: Device not found (invalid device id {0})'.format(dev_id))
+      print(('ERROR: Device not found (invalid device id {0})'.format(dev_id)))
     return False
 
 def check_device(dbr, dev_id, dev_name):
@@ -168,28 +168,28 @@ def check_device(dbr, dev_id, dev_name):
       d = dbr.session.query(models.Device).filter(models.Device.name==dev_name).one()
       dev_id = d.id
     except Exception as e:
-        print(str(e))
-        print('ERROR: Cannot find device with name "{0}" in config database'.format(dev_name))
+        print((str(e)))
+        print(('ERROR: Cannot find device with name "{0}" in config database'.format(dev_name)))
         return None, None
 
   if (is_analog(dbr, dev_id)):
     try:
       rt_d = dbr.rt_session.query(runtime.Device).filter(runtime.Device.id==dev_id).one()
     except Exception as e:
-      print(str(e))
+      print((str(e)))
 
-      print('ERROR: Cannot find device with id="{0}" in runtime database'.format(dev_id))
+      print(('ERROR: Cannot find device with id="{0}" in runtime database'.format(dev_id)))
       return None, None
 
     try:
       d = dbr.session.query(models.Device).filter(models.Device.id==dev_id).one()
     except:
-      print('ERROR: Cannot find device with id="{0}" in config database'.format(dev_id))
+      print(('ERROR: Cannot find device with id="{0}" in config database'.format(dev_id)))
       return None, None
 
     if (rt_d.mpsdb_name != d.name):
-      print('ERROR: Device names do not match in config ({0}) and runtime databases ({1})'.\
-          format(d.name, rt_d.mpsdb_name))
+      print(('ERROR: Device names do not match in config ({0}) and runtime databases ({1})'.\
+          format(d.name, rt_d.mpsdb_name)))
       return None, None
 
     is_bpm = False

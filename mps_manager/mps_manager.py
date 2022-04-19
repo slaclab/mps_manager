@@ -120,7 +120,7 @@ class MpsManager:
       if (hb_pv_name != None):
           self.hb_pv = PV(hb_pv_name)
           if (self.hb_pv.host == None):
-              print('ERROR: Cannot connect to specified heart beat PV ({})'.format(hb_pv_name))
+              print(('ERROR: Cannot connect to specified heart beat PV ({})'.format(hb_pv_name)))
               exit(1)
 
       try:
@@ -128,7 +128,7 @@ class MpsManager:
           self.tcp_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
           self.tcp_server.bind(('0.0.0.0', port))
       except socket.error:
-          print 'Failed to create socket'
+          print('Failed to create socket')
           sys.exit()
 
       if (self.log_file_name != None):
@@ -147,9 +147,9 @@ class MpsManager:
               self.file = open(self.log_file_name, 'a', 0)
           except IOError as e:
               if e.errno == errno.EACCES:
-                  print('ERROR: No permission to write file {}'.format(self.log_file_name))
+                  print(('ERROR: No permission to write file {}'.format(self.log_file_name)))
               else:
-                  print('ERROR: errno={}, cannot write to file {}'.format(e.errno, self.log_file_name))
+                  print(('ERROR: errno={}, cannot write to file {}'.format(e.errno, self.log_file_name)))
               exit(1)
 
       myAddr = (self.host, self.port)
@@ -213,8 +213,8 @@ class MpsManager:
           self.file.write('[{}] {}\n'.format(datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S'),
                                              str(message)))
       if self.stdout:
-          print('[{}] {}'.format(datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S'),
-                                 str(message)))
+          print(('[{}] {}'.format(datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S'),
+                                 str(message))))
       self.log_file_lock.release()
 
   def log_stats(self):
@@ -278,7 +278,7 @@ class MpsManager:
         d = dbr.session.query(models.Device).filter(models.Device.name==dev_name).one()
         dev_id = d.id
       except Exception as e:
-          print(str(e))
+          print((str(e)))
           self.log_string('ERROR: Cannot find device with name "{0}" in config database'.format(dev_name))
           return None, "name in config database"
     else:
@@ -291,7 +291,7 @@ class MpsManager:
     try:
         rt_d = dbr.rt_session.query(runtime.Device).filter(runtime.Device.id==dev_id).one()
     except Exception as e:
-        print(str(e))
+        print((str(e)))
 
         self.log_string('ERROR: Cannot find device with id="{0}" in runtime database'.format(dev_id))
         return None, "id in runtime database"
@@ -312,7 +312,7 @@ class MpsManager:
         d = dbr.session.query(models.Device).filter(models.Device.name==dev_name).one()
         dev_id = d.id
       except Exception as e:
-          print(str(e))
+          print((str(e)))
           self.log_string('ERROR: Cannot find device with name "{0}" in config database'.format(dev_name))
           return None, None
 
@@ -320,7 +320,7 @@ class MpsManager:
       try:
         rt_d = dbr.rt_session.query(runtime.Device).filter(runtime.Device.id==dev_id).one()
       except Exception as e:
-        print(str(e))
+        print((str(e)))
 
         self.log_string('ERROR: Cannot find device with id="{0}" in runtime database'.format(dev_id))
         return None, None
@@ -447,7 +447,7 @@ class MpsManager:
       # Receive list of thresholds to be changed
       threshold_message = MpsManagerThresholdRequest()
       data = conn.recv(threshold_message.size())
-      print('Received {} bytes'.format(len(data)))
+      print(('Received {} bytes'.format(len(data))))
       threshold_message.unpack(data)
 
       tm = ThresholdManager(dbr.session, dbr.rt_session, dbr.mps_names)

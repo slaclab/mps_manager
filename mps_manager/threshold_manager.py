@@ -67,7 +67,7 @@ class ThresholdManager:
     hist = hist_class(user=user, reason=reason, device_id=rt_d.id)
 
     # Copy thresholds from rt_d.threshold to history
-    for k in getattr(rt_d, t_table).__dict__.keys():
+    for k in list(getattr(rt_d, t_table).__dict__.keys()):
       if (re.match('i[0-3]_[lh]', k)):
         db_value = float(getattr(getattr(rt_d, t_table), k))
         setattr(hist, k, db_value)
@@ -84,7 +84,7 @@ class ThresholdManager:
       if (self.force_write):
         return True
       else:
-        print('ERROR: Tried to write to a read-only PV ({}={})'.format(pv.pvname, value))
+        print(('ERROR: Tried to write to a read-only PV ({}={})'.format(pv.pvname, value)))
         return False
 
     try:
@@ -93,7 +93,7 @@ class ThresholdManager:
       if (self.force_write):
         return True
       else:
-        print('ERROR: Tried to write to a read-only PV ({}={})'.format(pv_enable.pvname, pv_enable_value))
+        print(('ERROR: Tried to write to a read-only PV ({}={})'.format(pv_enable.pvname, pv_enable_value)))
         return False
 
     return True
@@ -166,12 +166,12 @@ class ThresholdManager:
     pv_change_status = True
     pv_names = ''
 
-    for table_k, table_v in self.table.items():
-      for threshold_k, threshold_v in table_v.items():
-        for integrator_k, integrator_v in threshold_v.items():
+    for table_k, table_v in list(self.table.items()):
+      for threshold_k, threshold_v in list(table_v.items()):
+        for integrator_k, integrator_v in list(threshold_v.items()):
           # Get threshold table
           t_table = self.get_threshold_table_name(table_k, integrator_k, threshold_k)
-          for value_k, value_v in integrator_v.items():
+          for value_k, value_v in list(integrator_v.items()):
             if (value_k == 'l'):
               pv = integrator_v['l_pv']
               pv_enable = integrator_v['l_pv_enable']
@@ -222,16 +222,16 @@ class ThresholdManager:
   # current value in the database
   #
   def verify_thresholds(self, rt_d):
-    for table_k, table_v in self.table.items():
-      for threshold_k, threshold_v in table_v.items():
-        for integrator_k, integrator_v in threshold_v.items():
+    for table_k, table_v in list(self.table.items()):
+      for threshold_k, threshold_v in list(table_v.items()):
+        for integrator_k, integrator_v in list(threshold_v.items()):
 
           new_low = None
           new_high = None
 
-          if ('l' in integrator_v.keys()):
+          if ('l' in list(integrator_v.keys())):
             new_low = float(integrator_v['l'])
-          if ('h' in integrator_v.keys()):
+          if ('h' in list(integrator_v.keys())):
             new_high = float(integrator_v['h'])
 
 
@@ -294,9 +294,9 @@ class ThresholdManager:
           table_name != 'alt' and
           table_name != 'lc1' and
           table_name != 'idl'):
-        print 'ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
-            format(rt_d.mpsdb_name, table_name, integrator, t_index)
-        print 'ERROR: Invalid table "{0}" (parameter={1})'.format(l[0], l)
+        print('ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
+            format(rt_d.mpsdb_name, table_name, integrator, t_index))
+        print('ERROR: Invalid table "{0}" (parameter={1})'.format(l[0], l))
         return False
 
       if (not (((integrator.startswith('i')) and
@@ -306,44 +306,44 @@ class ThresholdManager:
                integrator=='x' or
                integrator=='y' or
                integrator=='tmit')):
-        print 'ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
-            format(rt_d.mpsdb_name, table_name, integrator, t_index)
-        print 'ERROR: Invalid integrator "{0}" (parameter={1})'.format(integrator, l)
+        print('ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
+            format(rt_d.mpsdb_name, table_name, integrator, t_index))
+        print('ERROR: Invalid integrator "{0}" (parameter={1})'.format(integrator, l))
         return False
 
       if (not (t_index.startswith('t'))):
-        print 'ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
-            format(rt_d.mpsdb_name, table_name, integrator, t_index)
-        print 'ERROR: Invalid threshold "{0}", must start with T (parameter={1})'.format(t_index, l)
+        print('ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
+            format(rt_d.mpsdb_name, table_name, integrator, t_index))
+        print('ERROR: Invalid threshold "{0}", must start with T (parameter={1})'.format(t_index, l))
         return False
       else:
         if (len(t_index) != 2):
-          print 'ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
-              format(rt_d.mpsdb_name, table_name, integrator, t_index)
-          print 'ERROR: Invalid threshold "{0}", must be in T<index> format (parameter={1})'.format(t_index, l)
+          print('ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
+              format(rt_d.mpsdb_name, table_name, integrator, t_index))
+          print('ERROR: Invalid threshold "{0}", must be in T<index> format (parameter={1})'.format(t_index, l))
           return False
         else:
           if (table_name == 'lc2' or table_name == 'alt'):
             if (int(t_index[1])<0 or int(t_index[1])>7):
-              print 'ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
-                  format(rt_d.mpsdb_name, table_name, integrator, t_index)
-              print 'ERROR: Invalid threshold index "{0}", must be between 0 and 7 (parameter={1})'.\
-                  format(t_index[1], l)
+              print('ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
+                  format(rt_d.mpsdb_name, table_name, integrator, t_index))
+              print('ERROR: Invalid threshold index "{0}", must be between 0 and 7 (parameter={1})'.\
+                  format(t_index[1], l))
               return False
           else:
             if (int(t_index[1]) != 0):
-              print 'ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
-                  format(rt_d.mpsdb_name, table_name, integrator, t_index)
-              print 'ERROR: Invalid threshold index "{0}", must be 0'.\
-                  format(t_index[1], l)
+              print('ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
+                  format(rt_d.mpsdb_name, table_name, integrator, t_index))
+              print('ERROR: Invalid threshold index "{0}", must be 0'.\
+                  format(t_index[1], l))
               return False
 
       if (not (t_type == 'lolo' or
                t_type == 'hihi')):
-        print 'ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
-            format(rt_d.mpsdb_name, table_name, integrator, t_index)
-        print 'ERROR: Invalid threshold type "{0}", must be LOLO or HIHI (parameter={1})'.\
-            format(t_type, l)
+        print('ERROR: Invalid thresholds for device {0}, table {1}, integrator {2}, threshold {3}'.\
+            format(rt_d.mpsdb_name, table_name, integrator, t_index))
+        print('ERROR: Invalid threshold type "{0}", must be LOLO or HIHI (parameter={1})'.\
+            format(t_type, l))
         return False
 
     # build a dictionary with the input parameters
@@ -372,16 +372,16 @@ class ThresholdManager:
       if (t_type == 'hihi'):
         t_type = 'h'
 
-      if (not table_name in self.table.keys()):
+      if (not table_name in list(self.table.keys())):
         self.table[table_name]={}
 
-      if (not t_index in self.table[table_name].keys()):
+      if (not t_index in list(self.table[table_name].keys())):
         self.table[table_name][t_index]={}
 
-      if (not integrator in self.table[table_name][t_index].keys()):
+      if (not integrator in list(self.table[table_name][t_index].keys())):
         self.table[table_name][t_index][integrator]={}
 
-      if (not t_type in self.table[table_name][t_index][integrator].keys()):
+      if (not t_type in list(self.table[table_name][t_index][integrator].keys())):
         self.table[table_name][t_index][integrator][t_type]=value
         pv_name = self.mps_names.getThresholdPv(self.mps_names.getAnalogDeviceNameFromId(rt_d.mpsdb_id),
                                                 table_name, t_index, integrator, t_type, is_bpm)
